@@ -108,6 +108,14 @@ public class DistributedExecutionPlanner
         PlanFragment currentFragment = root.getFragment();
 
         // get splits for this fragment, this is lazy so split assignments aren't actually calculated here
+
+        /*
+        * PlanNode使用visitor时，调用PlaNode.accept(PlanVisitor visitor)，里面是visitor.visitPlan(this, context)，这是抽象方法
+        * 不同类型的PlanNode，比如TableScan，是直接调用visitor.visitTableScan()，并不是visitPlan()
+        *
+        * 这里通过递归一次性拿到所有叶子节点的SplitSource，一个PlanNodeId对应1个table scan，中间节点递归向下获取子节点的源
+        * 注意：这里是针对以当前stage的节点(PlanFragment -> PlanNode root)为根节点的子树
+        * */
         Map<PlanNodeId, SplitSource> splitSources = currentFragment.getRoot().accept(new Visitor(session, currentFragment.getStageExecutionDescriptor(), allSplitSources), null);
 
         // create child stages
