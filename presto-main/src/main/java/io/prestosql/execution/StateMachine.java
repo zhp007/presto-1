@@ -40,6 +40,16 @@ import static java.util.Objects.requireNonNull;
 /**
  * Simple state machine which holds a single state. Callers can register for state change events.
  */
+
+/*
+* StateMachine包含以下几种set state的方法：set(), setIf(), compareAndSet()
+* 一旦state改变，则会调用fireStateChanged()，进而调用fireStateChangedListener()通知每一个listener, 这些listener是通过
+* addStateChangeListener()加入这个state machine的
+*
+* StateChangeListener是functional interface，根据new state做出一些动作，每次state改变都会被invoke一次，如果不满足条件则忽略
+*
+* 每个state machine都有1个单独的线程池，用于在状态改变时异步通知listener
+* */
 @ThreadSafe
 public class StateMachine<T>
 {
