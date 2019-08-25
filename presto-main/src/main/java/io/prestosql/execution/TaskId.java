@@ -61,6 +61,11 @@ public class TaskId
         return StageId.valueOf(ids.subList(0, 2));
     }
 
+    /*
+    * id是task的buffer id，用于保存task的结果，对应TaskResource.getResults() uri中的{bufferId}
+    *
+    * 每个task在创建的时指定了它的buffer id，也就是输出结果的地方
+    * */
     public int getId()
     {
         return parseInt(QueryId.parseDottedId(fullId, 3, "taskId").get(2));

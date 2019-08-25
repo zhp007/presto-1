@@ -26,6 +26,7 @@ import java.util.List;
 import static com.google.common.collect.ImmutableMultiset.toImmutableMultiset;
 import static java.util.Objects.requireNonNull;
 
+// SubPlan其实就是为PlanFragment多增加了一层抽象，里面包含PlanFragment和子SubPlans
 @Immutable
 public class SubPlan
 {

@@ -29,6 +29,11 @@ public class DynamicSplitPlacementPolicy
     private final NodeSelector nodeSelector;
     private final Supplier<? extends List<RemoteTask>> remoteTasks;
 
+    /*
+    * 只在SqlQueryScheduler创建source stage的时候用到
+    *
+    * 这里的supplier实际上是SqlStageExecution.getAllTasks(), 使用supplier.get()确保拿到最新的task列表
+    * */
     public DynamicSplitPlacementPolicy(NodeSelector nodeSelector, Supplier<? extends List<RemoteTask>> remoteTasks)
     {
         this.nodeSelector = requireNonNull(nodeSelector, "nodeSelector is null");

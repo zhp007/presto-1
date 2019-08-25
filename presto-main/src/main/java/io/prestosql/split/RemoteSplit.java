@@ -25,6 +25,10 @@ import java.util.List;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
+/*
+* RemoteSplit实际上指向task的结果
+* 这里的location是TaskResource.getResults()对应的uri中不包含/{token}的部分
+* */
 public class RemoteSplit
         implements ConnectorSplit
 {

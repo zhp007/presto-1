@@ -17,6 +17,10 @@ import io.prestosql.spi.HostAddress;
 
 import java.util.List;
 
+/*
+* ConnectorSplit有两类，一类是表示不同connector的数据源的split，比如HiveSplit，另一类是presto内部用于数据交换的split，即RemoteSplit，
+* 表示task的输出结果的位置
+* */
 public interface ConnectorSplit
 {
     boolean isRemotelyAccessible();

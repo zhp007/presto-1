@@ -73,6 +73,11 @@ public class HttpLocationFactory
         return createTaskLocation(nodeManager.getCurrentNode(), taskId);
     }
 
+    /*
+    * task location实际上是task所在节点的restful uri: /v1/task/{taskId}
+    *
+    * 这个uri也用于exchange location
+    * */
     @Override
     public URI createTaskLocation(InternalNode node, TaskId taskId)
     {

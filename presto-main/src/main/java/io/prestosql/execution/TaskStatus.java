@@ -146,6 +146,7 @@ public class TaskStatus
         return state;
     }
 
+    // 返回task location，实际上是task所在节点的restful uri: /v1/task/{taskId}
     @JsonProperty
     public URI getSelf()
     {

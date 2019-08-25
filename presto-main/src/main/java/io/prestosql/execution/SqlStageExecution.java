@@ -126,6 +126,7 @@ public final class SqlStageExecution
         requireNonNull(schedulerStats, "schedulerStats is null");
 
         SqlStageExecution sqlStageExecution = new SqlStageExecution(
+                // 用PlanFragment创建state machine，之后从state machine里面拿PlanFragment
                 new StageStateMachine(stageId, location, session, fragment, executor, schedulerStats),
                 remoteTaskFactory,
                 nodeTaskMap,
@@ -407,6 +408,7 @@ public final class SqlStageExecution
         return newTasks.build();
     }
 
+    // sourceSplits表示等待task处理的数据源的split，来自SourcePartitionedScheduler
     private synchronized RemoteTask scheduleTask(InternalNode node, TaskId taskId, Multimap<PlanNodeId, Split> sourceSplits, OptionalInt totalPartitions)
     {
         checkArgument(!allTasks.contains(taskId), "A task with id %s already exists", taskId);
@@ -414,6 +416,7 @@ public final class SqlStageExecution
         ImmutableMultimap.Builder<PlanNodeId, Split> initialSplits = ImmutableMultimap.builder();
         initialSplits.putAll(sourceSplits);
 
+        // initialSplits由两部分组成，一部分是数据源的split，另一部分是上游task的输出结果。
         sourceTasks.forEach((planNodeId, task) -> {
             TaskStatus status = task.getTaskStatus();
             if (status.getState() != TaskState.FINISHED) {

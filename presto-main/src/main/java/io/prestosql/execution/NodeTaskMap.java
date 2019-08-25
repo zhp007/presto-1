@@ -29,6 +29,9 @@ import java.util.function.IntConsumer;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
+/*
+* NodeTaskMap在presto server启动时在NodeScheduler中初始化，整个presto只有1个实例
+* */
 @ThreadSafe
 public class NodeTaskMap
 {
