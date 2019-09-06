@@ -197,6 +197,17 @@ public class ExchangeClient
         });
     }
 
+    /*
+    * ExchangeClient获取page的过程：
+    * ExchangeClient.pollPage() -> postProcessPage() -> scheduleRequestIfNecessary()，从queuedClients里面拿到
+    * HttpPageBufferClient，调用HttpPageBufferClient.scheduleRequest()，从TaskResource.getResults()拿到page后，调用
+    * ExchangeClientCallback.addPages()，进而调用ExchangeClient.this.addPages()，把page加到ExchangeClient.pageBuffer中
+    *
+    * queueClients里的HttpPageBufferClient通过ExchangeClient.addLocation()添加，ExchangeClientCallback也是那时创建并传进
+    * HttpPageBufferClient的
+    *
+    * 在HttpPageBufferClient中定义ClientCallback接口，在ExchangeClient中接口的实现为ExchangeClientCallback
+    * */
     @Nullable
     public SerializedPage pollPage()
     {
@@ -411,6 +422,7 @@ public class ExchangeClient
         {
             requireNonNull(client, "client is null");
             requireNonNull(pages, "pages is null");
+            // ExchangeClient.this通过outer_class.this获取外部类的实例
             return ExchangeClient.this.addPages(pages);
         }
 

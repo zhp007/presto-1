@@ -30,6 +30,12 @@ import static io.prestosql.execution.buffer.PageSplitterUtil.splitPage;
 import static io.prestosql.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
 import static java.util.Objects.requireNonNull;
 
+/*
+* TaskOutputOperator包含OutputBuffer，用来存放task的执行结果
+* TaskOutputOperator.addInput()
+*   OutputBuffer.enqueue()
+*     ClientBuffer.enqueuePages()
+* */
 public class TaskOutputOperator
         implements Operator
 {

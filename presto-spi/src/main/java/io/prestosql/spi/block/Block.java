@@ -20,6 +20,14 @@ import java.util.function.BiConsumer;
 import static io.prestosql.spi.block.BlockUtil.checkArrayRange;
 import static io.prestosql.spi.block.DictionaryId.randomDictionaryId;
 
+/*
+* Slice直接操作内存，内部由byte[]表示，提供了一系列针对不同数据类型的getter和setter
+* 用Slices.allocate()申请新的Slice，用Slice.getXXX()和Slice.setXXX()对Slice的某一段(offset + length)进行操作
+* Slice和ByteBuffer类似
+*
+* Block表示表中的某一列，内部是由相同类型的数据组成的数组，每个数据占用1个position，总共保存position count行这一列的数据
+* 1个Block只支持1个getXXX()方法，因为里面的数据都是同类型的
+* */
 public interface Block
 {
     /**

@@ -32,7 +32,22 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
-
+/*
+* ExchangeOperator的执行流程：
+*
+* ExchangeOperator
+*   ExchangeClient
+*     HttpPageBufferClient
+*
+* ExchangeOperator类包含ExchangeClient, 入口方法是ExchangeOperator.addSplit()，进而调用ExchangeClient.addLocation()，里面用
+* HttpClient和location创建HttpPageBufferClient，这里的location是RemoteSplit.location，也是存放task执行结果的位置。后续的调用链为：
+* ExchangeClient.scheduleRequestIfNecessary() -> HttpPageBufferClient.scheduleRequest(), initiateRequest(), sendGetResults()
+* -> 在sendGetResults()里面通过HttpClient.executeAsync()获取task执行结果，然后通过ExchangeClientCallback.addPages() ->
+* pageBuffer.addAll()把获取的page加入ExchangeClient中的pageBuffer, pageBuffer实际上是Queue<SerializedPage>
+*
+* 从中Query.getNextResult()获取查询的结果则是通过ExchangeClient.pollPage()，进而调用pageBuffer.poll()从pageBuffer中取出之前存的task
+* 执行结果page
+* */
 public class ExchangeOperator
         implements SourceOperator, Closeable
 {

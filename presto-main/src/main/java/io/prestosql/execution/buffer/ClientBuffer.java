@@ -170,6 +170,14 @@ class ClientBuffer
     public ListenableFuture<BufferResult> getPages(long sequenceId, DataSize maxSize, Optional<PagesSupplier> pagesSupplier)
     {
         // acknowledge pages first, out side of locks to not trigger callbacks while holding the lock
+        /*
+        * 先把当前sequenceId之前的page清除，这一步是为了处理之前acknowledgePages()还没有传到，就开始用next token获取下批page，如果不移除，
+        * 可能获取之前已经取过的page。因为page在ClientBuffer中以LinkedList的形式保存，getPages()是通过sequenceId + 根据maxSize计算的offset
+        * 从LinkedList头部开始拿page。
+        *
+        * 每个ClientBuffer都有一个currentSequenceId用来记录当前处理到哪个page，根据sequenceId和currentSequenceId的大小来决定是否把
+        * 不用的page从LinkedList中移除
+        * */
         acknowledgePages(sequenceId);
 
         // attempt to load some data before processing the read

@@ -35,6 +35,7 @@ import static io.prestosql.sql.planner.SystemPartitioningHandle.FIXED_BROADCAST_
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 
+// OutputBuffers是对OutputBuffer类型的封装
 public final class OutputBuffers
 {
     public static final int BROADCAST_PARTITION_ID = 0;

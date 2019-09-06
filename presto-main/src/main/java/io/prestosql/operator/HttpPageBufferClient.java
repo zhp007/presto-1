@@ -296,7 +296,9 @@ public final class HttpPageBufferClient
 
     private synchronized void sendGetResults()
     {
+        // location表示/v1/task/{taskId}/results/{bufferId}
         URI uri = HttpUriBuilder.uriBuilderFrom(location).appendPath(String.valueOf(token)).build();
+        // 发送restful请求到TaskResource.getResults()拿到task的执行结果
         HttpResponseFuture<PagesResponse> resultFuture = httpClient.executeAsync(
                 prepareGet()
                         .setHeader(PRESTO_MAX_SIZE, maxResponseSize.toString())
@@ -336,6 +338,13 @@ public final class HttpPageBufferClient
                         }
                     }
 
+                    /*
+                    * HttpPageBufferClient确认收到数据后会发送acknowledge，调用TaskResource.acknowledgeResults()，把OutputBuffer中的
+                    * page移除。这是presto数据传输的token机制，类似于tcp中的seq和ack，保证数据传输的可靠性
+                    *
+                    * page在OutputBuffer -> ClientBuffer中以LinkedList的形式保存，所以ClientBuffer.enqueuePages()/acknowledgePages()
+                    * 是按顺序进行的
+                    * */
                     if (shouldAcknowledge && acknowledgePages) {
                         // Acknowledge token without handling the response.
                         // The next request will also make sure the token is acknowledged.

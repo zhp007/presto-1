@@ -72,6 +72,7 @@ public class SqlTaskExecutionFactory
         LocalExecutionPlan localExecutionPlan;
         try (SetThreadName ignored = new SetThreadName("Task-%s", taskStateMachine.getTaskId())) {
             try {
+                // 根据PlanFragment生成本地查询执行计划LocalExecutionPlan
                 localExecutionPlan = planner.plan(
                         taskContext,
                         fragment.getRoot(),

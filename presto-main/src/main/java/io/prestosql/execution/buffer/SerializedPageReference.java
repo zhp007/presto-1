@@ -22,6 +22,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
+/*
+* 把SerializedPage封装成SerializedPageReference是为了记录page被添加到多少个ClientBuffer中。每添加1次，就调用addReference()，计数加1，
+* 每从ClientBuffer中取出1次，就调用dereferencePage()，计数减1，当计数减到0时，调用onDereference callback。多增加一层封装的目的就是记录
+* 内存的使用情况，从而在page被使用完后调用OutputBufferMemoryManager.updateMemoryUsage()，通知有新的内存用于OutputBuffer
+* */
 @ThreadSafe
 class SerializedPageReference
 {

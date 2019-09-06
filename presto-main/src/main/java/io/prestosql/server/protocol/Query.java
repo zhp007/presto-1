@@ -381,6 +381,7 @@ class Query
             long rows = 0;
             long targetResultBytes = targetResultSize.toBytes();
             while (bytes < targetResultBytes) {
+                // 从exchangeClient.pollPage()中获取query的结果
                 SerializedPage serializedPage = exchangeClient.pollPage();
                 if (serializedPage == null) {
                     break;

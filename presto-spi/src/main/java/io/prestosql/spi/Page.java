@@ -31,6 +31,9 @@ import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
+/*
+* Page表示一个行块，由Block[]组成，position count表示行数，channel count表示列数
+* */
 public class Page
 {
     public static final int INSTANCE_SIZE = ClassLayout.parseClass(Page.class).instanceSize() +

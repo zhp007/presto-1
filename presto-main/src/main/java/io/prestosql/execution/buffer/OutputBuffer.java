@@ -20,6 +20,9 @@ import io.prestosql.execution.buffer.OutputBuffers.OutputBufferId;
 
 import java.util.List;
 
+/*
+* OutputBuffer存放task的执行结果，存放的基本单位是ClientBuffer，每个OutputBufferId和ClientBuffer一一对应
+* */
 public interface OutputBuffer
 {
     /**

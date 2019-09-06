@@ -43,6 +43,10 @@ import static io.prestosql.execution.buffer.BufferState.OPEN;
 import static io.prestosql.execution.buffer.BufferState.TERMINAL_BUFFER_STATES;
 import static java.util.Objects.requireNonNull;
 
+/*
+* SqlTask创建时将OutputBuffer初始化为LazyOutputBuffer，LazyOutputBuffer是对OutputBuffer的封装，后面通过调用SqlTask.updateTask()
+* 决定OutputBuffer的具体类型
+* */
 public class LazyOutputBuffer
         implements OutputBuffer
 {

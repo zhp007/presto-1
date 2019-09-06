@@ -236,6 +236,24 @@ public class TaskResource
         return taskInfo;
     }
 
+    /*
+    * 获取task结果的执行流程：
+    *
+    * 调用TaskManager/SqlTaskManager.getTaskResults()，步骤为：
+    * 1. 用taskId从SqlTaskManager的task列表中取出SqlTask，每个SqlTask对应一个OutputBuffer
+    * 2. 用bufferId从OutputBuffer中取出ClientBuffer，每个OutputBuffer有多个ClientBuffer
+    * 3. 用token从ClientBuffer中取出page，结果存在ListenableFuture<BufferResult>中
+    *
+    * 在SqlTask和TaskOutputOperator中都有OutputBuffer，二者是怎么对应上（共享）的？
+    * LocalExecutionPlanner.plan()提供了OutputBuffer，创建TaskOutputFactory()时作为参数传进去，进而在创建TaskOutputOperator时作为
+    * 参数传进去，从而在addInput()输出task结果时，使用OutputBuffer.enqueue()把结果放到这个OutputBuffer里面
+    * LocalExecutionPlanner.plan()参数中的OutputBuffer则是来源于：
+    * SqlTask.updateTask()
+    *   SqlTaskExecutionFactory.create()
+    *     LocalExecutionPlanner.plan()
+    * SqlTask在创建时则创建了LazyOutputBuffer，里面封装了OutputBuffer delegate，通过setOutputBuffers()决定delegate具体的OutputBuffer
+    * 的类型
+    * */
     @GET
     @Path("{taskId}/results/{bufferId}/{token}")
     @Produces(PRESTO_PAGES)
@@ -267,6 +285,26 @@ public class TaskResource
                 status = Status.NO_CONTENT;
             }
             else {
+                /*
+                * TypeToken用来解决java运行时泛型类型被擦除的问题
+                *
+                * 泛型信息只存在于代码编译阶段，在进入jvm之前，与泛型相关的信息会被擦除掉，比如
+                * List<String> l1 = new ArrayList<String>()
+                * List<Integer> l2 = new ArrayList<Integer>()
+                * l1.getClass() == l2.getClass()，两者在jvm中的Class都是List.class
+                * 泛型类中的类型参数如果没有指定上界，比如<T>，在jvm中会被转换为Object，如果制定了上界，比如<T extends String>，则
+                * 类型参数被替换成类型上界
+                *
+                * 泛型List<E>中add()方法的定义为add(E e)，在类型擦除时，add()方法等同于add(Object obj)，利用反射，可以绕过编译器
+                * 去调用方法add()方法，从而实现：
+                * List<Integer> l = new ArrayList<>()
+                * l.add(1)
+                * // l.add("str")，这行会编译出错，因为类型不匹配
+                * Method method = l.getClass().getDeclaredMethod("add", Object.class);
+                * method.invoke(l, "str")
+                *
+                * 用TypeToken创建空的匿名类可以获取泛型的类型信息
+                * */
                 entity = new GenericEntity<>(serializedPages, new TypeToken<List<Page>>() {}.getType());
                 status = Status.OK;
             }

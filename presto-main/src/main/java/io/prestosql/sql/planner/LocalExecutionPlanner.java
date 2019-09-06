@@ -450,6 +450,7 @@ public class LocalExecutionPlanner
         Session session = taskContext.getSession();
         LocalExecutionPlanContext context = new LocalExecutionPlanContext(taskContext, types);
 
+        // 根据PlanNode生成对应的PhysicalOperation, 其中包含List<OperatorFactory>，下面用它来生成DriverFactory并加入到TaskContext中
         PhysicalOperation physicalOperation = plan.accept(new Visitor(session, stageExecutionDescriptor), context);
 
         Function<Page, Page> pagePreprocessor = enforceLayoutProcessor(outputLayout, physicalOperation.getLayout());
