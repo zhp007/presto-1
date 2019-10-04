@@ -33,6 +33,7 @@ public class ArrayBlock
     private final int positionCount;
     private final boolean[] valueIsNull;
     private final Block values;
+    // 数组的每个元素在底层存储中开始存放的位置，offsets[n] = 从元素0到n-1的总大小
     private final int[] offsets;
 
     private volatile long sizeInBytes;

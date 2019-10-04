@@ -115,6 +115,7 @@ public class PlanFragmenter
 
         SubPlan subPlan = fragmenter.buildRootFragment(root, properties);
         subPlan = reassignPartitioningHandleIfNecessary(session, subPlan);
+        // 在planning阶段分析是否使用grouped execution
         subPlan = analyzeGroupedExecution(session, subPlan);
 
         checkState(!isForceSingleNodeOutput(session) || subPlan.getFragment().getPartitioning().isSingleNode(), "Root of PlanFragment is not single node");
@@ -529,6 +530,10 @@ public class PlanFragmenter
         }
     }
 
+    /*
+    * 对不同类型的PlanNode，判断是能否使用grouped execution，返回的GroupedExecutionProperties包含满足条件的TableScanNode，
+    * List<PlanNodeId> capableTableScanNodes
+    * */
     private static class GroupedExecutionTagger
             extends PlanVisitor<GroupedExecutionProperties, Void>
     {

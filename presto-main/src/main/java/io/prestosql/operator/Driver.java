@@ -54,6 +54,18 @@ import static io.prestosql.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.lang.Boolean.TRUE;
 import static java.util.Objects.requireNonNull;
 
+/*
+* Driver.processFor() -> processInternal()
+*   processNewSources()
+* 每个Driver有1个TaskSource，0或者1个SourceOperator
+* processNewSources()更新TaskSource里面的split，把每个新加入的split放进SourceOperator
+*
+* 从TableScanOperator.addSplit()方法可以看出，每个SourceOperator的split只能set一次，所以有如下的关系：
+* 1个Driver -> 包含1个SourceOperator -> 处理1个split -> 生成1个ConnectorPageSource
+* -> 通过source.getNextPage()不断读出page
+*
+* */
+
 //
 // NOTE:  As a general strategy the methods should "stage" a change and only
 // process the actual change before lock release (DriverLockResult.close()).

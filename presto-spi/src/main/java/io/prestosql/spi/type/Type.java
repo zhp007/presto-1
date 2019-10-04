@@ -72,6 +72,7 @@ public interface Type
      * Creates the preferred block builder for this type. This is the builder used to
      * store values after an expression projection within the query.
      */
+    // 根据当前Type的类型创建BlockBuilder
     BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int expectedEntries);
 
     /**

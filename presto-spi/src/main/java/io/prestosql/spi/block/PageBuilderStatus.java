@@ -13,6 +13,7 @@
  */
 package io.prestosql.spi.block;
 
+// PageBuilderStatus用来记录PageBuilder的大小
 public class PageBuilderStatus
 {
     public static final int DEFAULT_MAX_PAGE_SIZE_IN_BYTES = 1024 * 1024;

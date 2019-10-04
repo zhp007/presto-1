@@ -21,6 +21,7 @@ import java.lang.reflect.Modifier;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
+// BlockBuilderStatus用来记录BlockBuilder的大小
 public class BlockBuilderStatus
 {
     public static final int INSTANCE_SIZE = deepInstanceSize(BlockBuilderStatus.class);
@@ -57,6 +58,7 @@ public class BlockBuilderStatus
     /**
      * Computes the size of an instance of this class assuming that all reference fields are non-null
      */
+    // 计算属于某个class的instance的大小
     private static int deepInstanceSize(Class<?> clazz)
     {
         if (clazz.isArray()) {

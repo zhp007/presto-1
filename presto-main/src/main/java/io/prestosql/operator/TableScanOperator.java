@@ -170,6 +170,7 @@ public class TableScanOperator
     public Supplier<Optional<UpdatablePageSource>> addSplit(Split split)
     {
         requireNonNull(split, "split is null");
+        // 每个TableScanOperator的split只能set一次，之后不能更新这个TableScanOperator对应的split
         checkState(this.split == null, "Table scan split already set");
 
         if (finished) {

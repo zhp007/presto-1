@@ -24,6 +24,22 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
+/*
+* TableScanOperator.getOutput()
+*   PageSourceManager.createPageSource() （继承自PageSourceProvider）
+*     HivePageSourceProvider.createPageSource() （继承自ConnectorPageSourceProvider）-> createHivePageSource()
+* 1. 先在里面遍历pageSourceFactories，包括orc, parquet, rcfile，对每个factory，都尝试能创建出对应的HivePageSourceFactory，
+* 如果能创建，则说明是相应的格式，则返回对应类型的ConnectorPageSource，通过序列化的lib的类名来判断是不是这种格式
+* 2. 如果不满足上面第一类，则遍历cursorProviders，创建RecordCursor，其中的RecordReader来自hadoop lib，包括hadoop mapred
+* 支持的各种文件格式
+*
+* 核心入口方法：HivePageSourceProvider.createPageSource()
+*
+* 有两种不同类型的数据源：ConnectorPageSource
+*   HivePageSourceFactory - orc, parquet, rcfile
+*   HiveRecordCursorProvider - generic（各种其他格式）, s3 select
+*
+* */
 public interface HivePageSourceFactory
 {
     Optional<? extends ConnectorPageSource> createPageSource(

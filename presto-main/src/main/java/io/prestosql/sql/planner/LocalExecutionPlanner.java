@@ -630,6 +630,21 @@ public class LocalExecutionPlanner
             return driverInstanceCount;
         }
 
+        /*
+        * driverInstanceCount表示在本地执行当前的PlanFragment（用root PlanNode表示）需要多少个driver
+        *
+        * 用Visitor访问PlanNode转化为PhysicalOperation时，自底向上，根据当前PlanNode的类型更改LocalExecutionPlanContext
+        * 里面的driverInstanceCount
+        *
+        * 执行计划树上层的节点可以override下层的节点已经设置的driverInstanceCount
+        *
+        * driverInstanceCount有四类：
+        * 第一类针对（createRemoteSource()对应的）RemoteSourceNode，设置为getTaskConcurrency(session)
+        * 第二类针对（createLocalExchange()对应的）ExchangeNode，根据ExchangeNode的类型，设置为1、不变或getTaskConcurrency(session)
+        * 第三类针对TableWriterNode，根据要写的表是否包含PartitioningScheme，设置为1或getTaskWriterCount(session)
+        * 第四类针对其他类型的PlanNode，设置为1，包括（createMergeSource()对应的）RemoteSourceNode、ValuesNode、
+        * （createLocalMerge()对应的）ExchangeNode
+        * */
         public void setDriverInstanceCount(int driverInstanceCount)
         {
             checkArgument(driverInstanceCount > 0, "driverInstanceCount must be > 0");

@@ -15,6 +15,12 @@ package io.prestosql.sql.planner.plan;
 
 import io.prestosql.sql.planner.iterative.GroupReference;
 
+/*
+* 用PlanVisitor visit PlanNode其实就是修改执行计划树的拓扑图，PlanNode之间是怎么连接的，不同类型的节点包含哪些性质
+*
+* 在查询执行时，会根据执行计划树生成task执行的依赖关系、数据流向（从哪里取上游执行结果，执行结果放在哪里供下游使用）
+*
+* */
 public abstract class PlanVisitor<R, C>
 {
     protected abstract R visitPlan(PlanNode node, C context);

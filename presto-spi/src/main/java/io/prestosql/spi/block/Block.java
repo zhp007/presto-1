@@ -27,6 +27,8 @@ import static io.prestosql.spi.block.DictionaryId.randomDictionaryId;
 *
 * Block表示表中的某一列，内部是由相同类型的数据组成的数组，每个数据占用1个position，总共保存position count行这一列的数据
 * 1个Block只支持1个getXXX()方法，因为里面的数据都是同类型的
+*
+* 在Block里面null和non-null的值分开存储
 * */
 public interface Block
 {
@@ -175,6 +177,7 @@ public interface Block
      * For example, in dictionary blocks, this only counts each dictionary entry once,
      * rather than each time a value is referenced.
      */
+    // getSizeInBytes()表示实际数据的大小
     long getSizeInBytes();
 
     /**
@@ -186,6 +189,7 @@ public interface Block
      * types. For RLE, it will be {@code N} times larger. For dictionary, it will be
      * larger based on how many times dictionary entries are reused.
      */
+    // getLogicalSizeInBytes()表示忽略内部的存储形式，把存储展开成一个个完整的数据后，总共有多大
     default long getLogicalSizeInBytes()
     {
         return getSizeInBytes();
@@ -208,6 +212,7 @@ public interface Block
      * Returns the retained size of this block in memory, including over-allocations.
      * This method is called from the inner most execution loop and must be fast.
      */
+    // getRetainedSizeInBytes()表示占用内存的大小，包含各种开销
     long getRetainedSizeInBytes();
 
     /**
