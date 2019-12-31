@@ -20,6 +20,10 @@ import java.util.function.BiConsumer;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * 在用到时才读取的block，每个getXXX()方法中都有assureLoaded()，确保在读取数据前加载block
+ * block只被加载一次
+ */
 public class LazyBlock
         implements Block
 {

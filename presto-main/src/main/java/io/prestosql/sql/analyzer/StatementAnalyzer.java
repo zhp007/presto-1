@@ -226,6 +226,10 @@ import static java.util.Collections.emptyList;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * sql tree的解析：
+ * StatementAnalyzer.analyze()，传入的Node类型为Statement，根据sql语句的不同类型调用Visitor的visitXXX()方法
+ */
 class StatementAnalyzer
 {
     private final Analysis analysis;
