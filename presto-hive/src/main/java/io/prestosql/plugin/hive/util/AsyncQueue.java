@@ -41,6 +41,9 @@ public class AsyncQueue<T>
     @GuardedBy("this")
     private final Queue<T> elements;
     // This future is completed when the queue transitions from full to not. But it will be replaced by a new instance of future immediately.
+    /**
+     * SettableFuture<?> notFullSignal表示当前的状态是full，将来会变成not full，当这个future set时表示从full变成not full
+     */
     @GuardedBy("this")
     private SettableFuture<?> notFullSignal = SettableFuture.create();
     // This future is completed when the queue transitions from empty to not. But it will be replaced by a new instance of future immediately.

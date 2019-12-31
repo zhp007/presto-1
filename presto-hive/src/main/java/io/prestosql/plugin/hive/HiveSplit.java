@@ -38,6 +38,7 @@ public class HiveSplit
     private final long start;
     private final long length;
     private final long fileSize;
+    // schema就是split properties，包含file input format, serialization lib, columns, column types这些性质
     private final Properties schema;
     private final List<HivePartitionKey> partitionKeys;
     private final List<HostAddress> addresses;

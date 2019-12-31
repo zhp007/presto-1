@@ -103,6 +103,10 @@ public class DistributedExecutionPlanner
         }
     }
 
+    /*
+     * doPlan() -> Visitor.visitTableScan()获取SplitSource，然后在SourcePartitionedScheduler.schedule()中调用
+     * splitSource.getNextBatch()，从而用到了AsyncQueue中的executor
+     */
     private StageExecutionPlan doPlan(SubPlan root, Session session, ImmutableList.Builder<SplitSource> allSplitSources)
     {
         PlanFragment currentFragment = root.getFragment();

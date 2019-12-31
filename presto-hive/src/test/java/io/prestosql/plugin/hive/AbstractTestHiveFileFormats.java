@@ -720,6 +720,26 @@ public abstract class AbstractTestHiveFileFormats
         assertFalse(cursor.advanceNextPosition());
     }
 
+    /**
+     * 方法materializeSourceDataStream()描述了从page source物化出原始数据的过程：
+     * Page <- pageSource.getNextPage()
+     *
+     * 层次结构：
+     * MaterializedResult <- list(MaterializedRow), list(Type)
+     * MaterializedRow <- 表示一行保存的值，list(Object) = values
+     *
+     * 按行组装
+     * 从(position, channel)得到某行列的值，然后加入到当前正在组装的行
+     *
+     * 组装一行的过程：
+     * for position : 1 - m:
+     *   row = []
+     *   for channel : 1 - n:
+     *     block <- channel
+     *     value <- (block, position)
+     *     row.add(value)
+     *
+     */
     protected void checkPageSource(ConnectorPageSource pageSource, List<TestColumn> testColumns, List<Type> types, int rowCount)
             throws IOException
     {
