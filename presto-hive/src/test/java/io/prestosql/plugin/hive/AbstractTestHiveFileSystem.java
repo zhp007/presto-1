@@ -259,6 +259,23 @@ public abstract class AbstractTestHiveFileSystem
     }
 
     @Test
+    /**
+     * 从 HdfsEnvironment 获取 FileSystem 的过程：
+     *
+     * hdfsEnvironment.getFileSystem() <- hadoop.fs.Path.getFileSystem()
+     *   CACHE.get() (PrestoFileSystemCache extends Cache) <- getInternal() <- createFileSystem()
+     *     FileSystem.getFileSystemClass() <- scheme=s3, fs.s3.impl=PrestoS3FileSystem
+     *       wrapper = new PrestoFileSystemCache.FileSystemWrapper(original), original=PrestoS3FileSystem
+     *       其中：PrestoFileSystemCache$FileSystemKey{scheme=s3, authority=s3:}
+     *
+     * 在初始化的时候（PrestoS3ConfigurationInitializer.init()）设置 fs.s3.impl=io.prestosql.plugin.hive.s3.PrestoS3FileSystem
+     * 之后在 FileSystem中hadoop.conf.Configuration 的 getClass() 方法由 fs.s3.impl 获取类 PrestoS3FileSystem
+     *
+     * HdfsEnvironment: HadoopFileSystemCache.initialize()
+     * 把 FileSystem 里面原本的实现为 FileSystem$Cache 的变量 CACHE 替换成了 PrestoFileSystemCache
+     *
+     * 返回的是真正 FileSystem 的 wrapper
+     */
     public void testGetFileStatus()
             throws Exception
     {
@@ -266,6 +283,9 @@ public abstract class AbstractTestHiveFileSystem
         Path tablePath = new Path(basePath, "presto_test_external_fs");
         Path filePath = new Path(tablePath, "test1.csv");
         FileSystem fs = hdfsEnvironment.getFileSystem(TESTING_CONTEXT, basePath);
+
+        //System.out.println(fs.getClass());
+        //output: class org.apache.hadoop.fs.PrestoFileSystemCache$FileSystemWrapper
 
         assertTrue(fs.getFileStatus(basePath).isDirectory());
         assertTrue(fs.getFileStatus(tablePath).isDirectory());

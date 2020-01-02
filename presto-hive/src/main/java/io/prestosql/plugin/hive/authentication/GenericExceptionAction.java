@@ -13,6 +13,7 @@
  */
 package io.prestosql.plugin.hive.authentication;
 
+// GenericExceptionAction同样有run()方法，用来和runnable区分
 public interface GenericExceptionAction<R, E extends Exception>
 {
     R run()

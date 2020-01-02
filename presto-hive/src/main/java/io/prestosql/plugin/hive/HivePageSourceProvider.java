@@ -160,6 +160,13 @@ public class HivePageSourceProvider
             return new BucketAdaptation(bucketColumnIndices, bucketColumnHiveTypes, conversion.getTableBucketCount(), conversion.getPartitionBucketCount(), bucketNumber.getAsInt());
         });
 
+        /**
+         * 创建page source的流程：
+         * 遍历pageSourceFactories (在HiveModule里面注册，在这个类依赖注入)
+         *
+         * 看schema(properties)里的序列化的类是否匹配当前这个page source factory要处理的数据格式？
+         * 不匹配则返回空，直到找到一个匹配的page source，然后return
+         */
         for (HivePageSourceFactory pageSourceFactory : pageSourceFactories) {
             Optional<? extends ConnectorPageSource> pageSource = pageSourceFactory.createPageSource(
                     configuration,

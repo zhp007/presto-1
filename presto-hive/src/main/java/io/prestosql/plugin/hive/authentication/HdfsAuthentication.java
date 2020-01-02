@@ -13,6 +13,16 @@
  */
 package io.prestosql.plugin.hive.authentication;
 
+/**
+ * doAs(user, action)：如果user是合法用户，则执行action
+ *
+ * 对于s3，用下面的配置：
+ * HiveAuthenticationModule -> noHdfsAuthenticationModule()
+ *
+ * 不进行身份认证，直接执行action，比如：
+ * HdfsEnvironment:
+ *   getFileSystem() <- fileSystem = {}; return fileSystem
+ */
 public interface HdfsAuthentication
 {
     <R, E extends Exception> R doAs(String user, GenericExceptionAction<R, E> action)
