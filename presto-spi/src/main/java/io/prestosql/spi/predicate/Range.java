@@ -26,6 +26,10 @@ import static java.util.Objects.requireNonNull;
 /**
  * A Range of values across the continuous space defined by the types of the Markers
  */
+
+/**
+ * 取值范围的区间，由上界和下界组成
+ */
 public final class Range
 {
     private final Marker low;

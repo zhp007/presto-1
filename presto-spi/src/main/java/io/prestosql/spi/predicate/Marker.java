@@ -29,6 +29,15 @@ import static java.util.Objects.requireNonNull;
  * A point on the continuous space defined by the specified type.
  * Each point may be just below, exact, or just above the specified value according to the Bound.
  */
+
+/**
+ * Marker：用来标记区间的上下界
+ * 每个 Marker 包含类型 Type、存储值的 Block、这个标记的类型（below, exactly, above)
+ *
+ * 关于无穷的表示：
+ * 正无穷的上界 +∞ 用 empty + below 表示
+ * 负无穷的下界 -∞ 用 empty + above 表示
+ */
 public final class Marker
         implements Comparable<Marker>
 {

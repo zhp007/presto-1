@@ -46,6 +46,7 @@ public final class SortedRangeSet
         implements ValueSet
 {
     private final Type type;
+    // 每个 Range 用 (区间的下界, Range) 来标识
     private final NavigableMap<Marker, Range> lowIndexedRanges;
 
     private SortedRangeSet(Type type, NavigableMap<Marker, Range> lowIndexedRanges)

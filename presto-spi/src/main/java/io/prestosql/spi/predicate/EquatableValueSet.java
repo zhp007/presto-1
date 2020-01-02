@@ -47,6 +47,10 @@ public class EquatableValueSet
         implements ValueSet
 {
     private final Type type;
+    /**
+     * whiteList = true，表示需要枚举允许的值的集合，空集可以表示为 {whiteList = true, entries = null}
+     * whiteList = false，表示需要枚举不允许的值的集合，全集可以表示为 {whiteList = false, entries = null}
+     */
     private final boolean whiteList;
     private final Set<ValueEntry> entries;
 

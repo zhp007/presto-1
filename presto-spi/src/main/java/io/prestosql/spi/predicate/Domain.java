@@ -39,6 +39,10 @@ import static java.util.Objects.requireNonNull;
  * </ul>
  * <p>
  */
+
+/**
+ * Domain：值域 ValueSet + 是否允许 null
+ */
 public final class Domain
 {
     private final ValueSet values;
@@ -257,6 +261,7 @@ public final class Domain
     /**
      * Reduces the number of discrete components in the Domain if there are too many.
      */
+    // 区间或离散值的个数大于32则合并成一个值域
     public Domain simplify()
     {
         ValueSet simplifiedValueSet = values.getValuesProcessor().<Optional<ValueSet>>transform(

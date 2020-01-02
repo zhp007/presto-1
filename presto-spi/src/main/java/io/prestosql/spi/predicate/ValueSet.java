@@ -30,6 +30,9 @@ import static java.util.stream.Collectors.toList;
         @JsonSubTypes.Type(value = EquatableValueSet.class, name = "equatable"),
         @JsonSubTypes.Type(value = SortedRangeSet.class, name = "sortable"),
         @JsonSubTypes.Type(value = AllOrNoneValueSet.class, name = "allOrNone")})
+/**
+ * ValueSet：带类型 Type 的值域，分成3类：连续（SortedRangeSet）、离散（EquatableValueSet）、全集或空集（AllOrNoneValueSet）
+ */
 public interface ValueSet
 {
     static ValueSet none(Type type)

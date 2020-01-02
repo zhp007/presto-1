@@ -27,5 +27,6 @@ public interface Ranges
     /**
      * @return Single range encompassing all of allowed the ranges
      */
+    // 合并区间
     Range getSpan();
 }

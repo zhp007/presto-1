@@ -42,6 +42,22 @@ import static java.util.stream.Collectors.toMap;
 /**
  * Defines a set of valid tuples according to the constraints on each of its constituent columns
  */
+
+/**
+ * predicate：逻辑的谓词，经过判断返回真假的函数
+ * predicate 这个 package 定义了用来判断表中的数据（行、列）是否满足条件的框架，入口是 TupleDomain
+ *
+ * TupleDomain：表示类型T的值域，由 map(T -> Domain) 组成，里面包含多个 T 和它们对应的 Domain
+ * 一般用于列 ColumnHandle: TupleDomain<ColumnHandle>
+ *
+ * 包含关系：
+ * TupleDomain
+ *   Domain：值域 ValueSet + 是否允许 null
+ *     ValueSet：分成3类：连续（SortedRangeSet）、离散（EquatableValueSet）、全集或空集（AllOrNoneValueSet）
+ *       Range：取值范围的区间，由上界和下界组成
+ *         Marker：标记区间的上下界
+ *     null ?
+ */
 public final class TupleDomain<T>
 {
     /**
