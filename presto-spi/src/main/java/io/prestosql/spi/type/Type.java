@@ -25,6 +25,10 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * 读取block中的数据的方法：
+ * 已知block的类型为type (XXX)，调用type.getXXX(block, position)获取这个block里面对应行position的值
+ */
 public interface Type
 {
     /**

@@ -42,6 +42,12 @@ class PageReference
         return page.getRetainedSizeInBytes();
     }
 
+    /**
+     * 当这个page没有任何引用的时候才把运行onFree
+     *
+     * 比如BroadcastExchanger -> memoryManager.accept()加入page的时候，如果page被加到多个source，则要等到所有source
+     * 处理完这个page后，才会从memoryManager里面减去它占用的内存
+     */
     public Page removePage()
     {
         int referenceCount = this.referenceCount.decrementAndGet();

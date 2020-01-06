@@ -23,6 +23,15 @@ import static io.prestosql.operator.Operator.NOT_BLOCKED;
 import static io.prestosql.operator.exchange.LocalExchanger.FINISHED;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * 调用过程：
+ * LocalExchangeSink.addPage(page)
+ *   LocalExchanger.accept(page)
+ *   对于hash partition，把page按行的hash值进行分割，得到map(partition -> page)
+ *     把得到的page_partition加入source：LocalExchangeSource.addPage(page)
+ *
+ * LocalExchangeSink -> exchanger (partition) -> LocalExchangeSource
+ */
 public class LocalExchangeSink
 {
     public static LocalExchangeSink finishedLocalExchangeSink()

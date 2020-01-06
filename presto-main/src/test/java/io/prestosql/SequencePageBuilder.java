@@ -43,6 +43,11 @@ public final class SequencePageBuilder
         return createSequencePage(types, length, new int[types.size()]);
     }
 
+    /**
+     * 创建1个page，为每个type创建1个block，block的长度为length，即行数为length
+     * 列数为initialValues.length，initialValues存储每个block的第一个值
+     * 第i个block的取值范围为initialValues[i] - ~ + length
+     */
     public static Page createSequencePage(List<? extends Type> types, int length, int... initialValues)
     {
         Block[] blocks = new Block[initialValues.length];

@@ -68,6 +68,14 @@ class PartitioningExchanger
         }
     }
 
+    /**
+     * 取出page中hash值相同的行组成新的page，map(position -> page)
+     * hash的范围：0 - (partition_count - 1)
+     * page_partition(1) <- rows in page where hash(position) = 1
+     *
+     * 输出为：partition -> page，作为list(Consumer<PageReference>)的输入
+     * 这里Consumer<PageReference> = LocalExchangeSource.addPage()
+     */
     @Override
     public synchronized void accept(Page page)
     {

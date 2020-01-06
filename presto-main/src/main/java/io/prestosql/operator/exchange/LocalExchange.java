@@ -76,6 +76,17 @@ public class LocalExchange
     @GuardedBy("this")
     private int nextSourceIndex;
 
+    /**
+     * bufferCount = # of LocalExchangeSource
+     * bufferCount决定创建多少个LocalExchangeSource，同时也是决定每个page按多少个partition来分割
+     *
+     * bufferCount的大小在LocalExchangeFactory中由 (PartitioningHandle, default concurrency, partition channels) 共同决定
+     * single_distribution, bufferCount = 1
+     * others: bufferCount = default concurrency
+     * partition_channels只在用hash_distribution的时候才需要
+     *
+     * page的获取：LocalExchangeSinkOperator.addInput(page)
+     */
     public LocalExchange(
             int sinkFactoryCount,
             int bufferCount,
@@ -85,6 +96,7 @@ public class LocalExchange
             Optional<Integer> partitionHashChannel,
             DataSize maxBufferedBytes)
     {
+        // 先创建好指定数目的LocalExchangeSinkFactory，后面调用getSinkFactory(id)的时候直接从这个列表里拿
         this.allSinkFactories = Stream.generate(() -> new LocalExchangeSinkFactory(LocalExchange.this))
                 .limit(sinkFactoryCount)
                 .collect(toImmutableList());
@@ -102,6 +114,7 @@ public class LocalExchange
                 .collect(toImmutableList());
 
         this.memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
+        // 根据不同类型的partition创建不同的exchanger
         if (partitioning.equals(SINGLE_DISTRIBUTION)) {
             exchangerSupplier = () -> new BroadcastExchanger(buffers, memoryManager);
         }
@@ -186,6 +199,10 @@ public class LocalExchange
         checkAllSinksComplete();
     }
 
+    /**
+     * exchanger起承上启下的作用，sink里包含exchanger，在处理page的时候转调exchanger，把输出的page加进source
+     * sink = LocalExchangeSink, source = LocalExchangeSource
+     */
     private LocalExchangeSink createSink(LocalExchangeSinkFactory factory)
     {
         checkNotHoldsLock(this);
@@ -200,6 +217,8 @@ public class LocalExchange
 
             // Note: exchanger can be stateful so create a new one for each sink
             LocalExchanger exchanger = exchangerSupplier.get();
+            // 创建LocalExchangeSink传入的回调是consumer，这个函数需要的参数通常只有类里面才能获取，什么时候调用也由里面决定
+            // 但是还是需要更新这个类外面的状态，和外面有交互
             LocalExchangeSink sink = new LocalExchangeSink(exchanger, this::sinkFinished);
             sinks.add(sink);
             return sink;
@@ -324,6 +343,7 @@ public class LocalExchange
             }
             return localExchangeMap.computeIfAbsent(lifespan, ignored -> {
                 checkState(noMoreSinkFactories);
+                // numSinkFactories初始值为0，每次调用newSinkFactoryId()则+1
                 LocalExchange localExchange =
                         new LocalExchange(numSinkFactories, bufferCount, partitioning, types, partitionChannels, partitionHashChannel, maxBufferedBytes);
                 for (LocalExchangeSinkFactoryId closedSinkFactoryId : closedSinkFactories) {

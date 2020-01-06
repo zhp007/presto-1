@@ -135,6 +135,14 @@ public class TestLocalExchange
     }
 
     @Test(dataProvider = "executionStrategy")
+    /**
+     * LocalExchange <- LocalExchangeFactory.getLocalExchange()
+     *
+     * LocalExchangeSink.addPage(page)
+     *   exchanger.accept(page)
+     *
+     * 验证LocalExchange创建2个partition的流程
+     */
     public void testBroadcast(PipelineExecutionStrategy executionStrategy)
     {
         LocalExchangeFactory localExchangeFactory = new LocalExchangeFactory(
@@ -145,13 +153,16 @@ public class TestLocalExchange
                 Optional.empty(),
                 executionStrategy,
                 LOCAL_EXCHANGE_MAX_BUFFERED_BYTES);
+        // 只调用了1次newSinkFactoryId()，后面用LocalExchangeFactory创建exchange时只会准备1个LocalExchangeSinkFactory
         LocalExchangeSinkFactoryId localExchangeSinkFactoryId = localExchangeFactory.newSinkFactoryId();
         localExchangeFactory.noMoreSinkFactories();
 
         run(localExchangeFactory, executionStrategy, exchange -> {
+            // 1. 从localExchangeFactory中创建exchange
             assertEquals(exchange.getBufferCount(), 2);
             assertExchangeTotalBufferedBytes(exchange, 0);
 
+            // 2. 从exchange中取出创建时准备的指定数目的LocalExchangeSinkFactory，创建sink，数目不固定
             LocalExchangeSinkFactory sinkFactory = exchange.getSinkFactory(localExchangeSinkFactoryId);
             LocalExchangeSink sinkA = sinkFactory.createSink();
             assertSinkCanWrite(sinkA);
@@ -160,12 +171,15 @@ public class TestLocalExchange
             sinkFactory.close();
             sinkFactory.noMoreSinkFactories();
 
+            // 3. 根据partition的数目，创建LocalExchangeSource，这里partition = 2，所以创建2个source
             LocalExchangeSource sourceA = exchange.getSource(0);
             assertSource(sourceA, 0);
 
             LocalExchangeSource sourceB = exchange.getSource(1);
             assertSource(sourceB, 0);
 
+            // 4. 用sink处理page，经过exchanger处理后加到source
+            // 这些page在加入source时，会同时调用LocalExchangeMemoryManager更新内存的使用情况
             sinkA.addPage(createPage(0));
 
             assertSource(sourceA, 1);
@@ -181,6 +195,8 @@ public class TestLocalExchange
             assertRemovePage(sourceA, createPage(0));
             assertSource(sourceA, 1);
             assertSource(sourceB, 2);
+            // 这里测试broadcast exchange，只要page还被至少1个source使用，就还要算上它占用的内存
+            // 所以即使把sourceA中的page全移除，因为sourceB还存着这2个page，所以memoryManager里使用的内存大小还是为2个page
             assertExchangeTotalBufferedBytes(exchange, 2);
 
             assertRemovePage(sourceA, createPage(0));
@@ -188,6 +204,10 @@ public class TestLocalExchange
             assertSource(sourceB, 2);
             assertExchangeTotalBufferedBytes(exchange, 2);
 
+            // 5. sink提供完page后，调用finish()，回调LocalExchange.sinkFinished()，
+            // 如果所有sink都完成了，则依次调用所有source的finish()，设置每个source的finishing = true
+            // 当source里面的page取完以后，调用这个source的isFinished()会返回true，表示source结束
+            // 时间顺序为：sinkA结束, sinkB结束, sourceA取完page后结束, sourceB取完page后结束
             sinkA.finish();
             assertSinkFinished(sinkA);
             assertExchangeTotalBufferedBytes(exchange, 2);
