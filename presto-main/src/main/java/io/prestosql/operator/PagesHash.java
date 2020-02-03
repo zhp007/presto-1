@@ -35,11 +35,13 @@ public final class PagesHash
 {
     private static final int INSTANCE_SIZE = ClassLayout.parseClass(PagesHash.class).instanceSize();
     private static final DataSize CACHE_SIZE = new DataSize(128, KILOBYTE);
+    // addresses就是PagesIndex里valueAddresses，每个值表示当前page集合里的某一行数据属于哪个page，以及在这个page中的行号
     private final LongArrayList addresses;
     private final PagesHashStrategy pagesHashStrategy;
 
     private final int channelCount;
     private final int mask;
+    // key[]表示hash表，保存 取模后的hash值 -> realPosition(绝对行号) 的映射
     private final int[] key;
     private final long size;
 
@@ -83,8 +85,13 @@ public final class PagesHash
             // to extracting hashes on the fly in the loop below.
             for (int position = 0; position < stepSize; position++) {
                 int realPosition = position + stepBeginPosition;
+                // 用这一行在page集合中绝对行号解码出实际位置（原本属于哪个page，以及在这个page中的行号），用其计算出hash值
+                // hash值是基于这个位置存储的实际的数据值计算出来的
                 long hash = readHashPosition(realPosition);
+                // 创建这一行在当前这个address batch中的相对行号到hash值的映射
                 positionToFullHashes[position] = hash;
+                // 创建这一行在page集合中的绝对行号到hash值的映射
+                // 这两个数组存储相同的hash值，只是1个下标用相对行号（position），1个下标用绝对行号（realPosition）
                 positionToHashes[realPosition] = (byte) hash;
             }
 
@@ -96,11 +103,17 @@ public final class PagesHash
                 }
 
                 long hash = positionToFullHashes[position];
+                // 根据每行的hash值，求出这行在hash表中的位置，即hash值对hashSize取模后的值
                 int pos = getHashPosition(hash, mask);
 
                 // look for an empty slot or a slot containing this key
+                // 如果hash表中对应的这个位置非空
                 while (key[pos] != -1) {
                     int currentKey = key[pos];
+                    // 检查发生冲突的位置保存的地址对应的值是否和当前这一行的值相同，相同要满足2个条件：
+                    // 1. hash值相同
+                    // 2. 实际存储的值相同，用Type.equalTo()检查
+                    // 如果相同，则使用PositionLinks来处理，类似于HashMap中用链表来存储key相同的值
                     if (((byte) hash) == positionToHashes[currentKey] && positionEqualsPositionIgnoreNulls(currentKey, realPosition)) {
                         // found a slot for this key
                         // link the new key position to the current key position

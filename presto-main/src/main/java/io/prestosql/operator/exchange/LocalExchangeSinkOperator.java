@@ -47,6 +47,17 @@ public class LocalExchangeSinkOperator
         private final Function<Page, Page> pagePreprocessor;
         private boolean closed;
 
+        /**
+         * 这里创建LocalExchangeSinkOperatorFactory时，传入LocalExchangeFactory作为参数
+         *
+         * 调用createOperator()时，通过LocalExchangeFactory.getLocalExchange()获取LocalExchange，然后用LocalExchange
+         * 根据sinkFactoryId获取LocalExchangeSinkFactory，然后用sink factory创建出sink，用sink创建出operator
+         * 流程：createOperator()
+         * LocalExchange <- localExchangeFactory.getLocalExchange()
+         *   localExchangeSinkFactory <- LocalExchange.getSinkFactory()
+         *     LocalExchangeSink <- LocalExchangeSinkFactory.createSink()
+         *       LocalExchangeSinkOperator <- LocalExchangeSink
+         */
         public LocalExchangeSinkOperatorFactory(LocalExchangeFactory localExchangeFactory, int operatorId, PlanNodeId planNodeId, LocalExchangeSinkFactoryId sinkFactoryId, Function<Page, Page> pagePreprocessor)
         {
             this.localExchangeFactory = requireNonNull(localExchangeFactory, "localExchangeFactory is null");

@@ -86,6 +86,9 @@ public class LocalExchange
      * partition_channels只在用hash_distribution的时候才需要
      *
      * page的获取：LocalExchangeSinkOperator.addInput(page)
+     *
+     * LocalExchange里面包含list(LocalExchangeSinkFactory), list(LocalExchangeSource)，在创建LocalExchange时就把
+     * sink factory和source全部创建了
      */
     public LocalExchange(
             int sinkFactoryCount,
@@ -114,7 +117,7 @@ public class LocalExchange
                 .collect(toImmutableList());
 
         this.memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
-        // 根据不同类型的partition创建不同的exchanger
+        // 根据不同类型的partitioning方式创建不同的exchanger
         if (partitioning.equals(SINGLE_DISTRIBUTION)) {
             exchangerSupplier = () -> new BroadcastExchanger(buffers, memoryManager);
         }
@@ -323,6 +326,7 @@ public class LocalExchange
             return result;
         }
 
+        // 这个方法被调用后，之后不能用newSinkFactoryId()创建新的sink factory
         public synchronized void noMoreSinkFactories()
         {
             noMoreSinkFactories = true;
@@ -342,6 +346,8 @@ public class LocalExchange
                 checkArgument(!lifespan.isTaskWide(), "LocalExchangeFactory is declared as GROUPED_EXECUTION. Task-wide exchange cannot be created.");
             }
             return localExchangeMap.computeIfAbsent(lifespan, ignored -> {
+                // 先创建完所有SinkFactoryId，确定numSinkFactories，再调用getLocalExchange()创建LocalExchange
+                // 这里检查调用getLocalExchange()前，已经调用noMoreSinkFactories()关闭sink factory的创建
                 checkState(noMoreSinkFactories);
                 // numSinkFactories初始值为0，每次调用newSinkFactoryId()则+1
                 LocalExchange localExchange =

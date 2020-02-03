@@ -27,8 +27,8 @@ import static java.util.Objects.requireNonNull;
  * 调用过程：
  * LocalExchangeSink.addPage(page)
  *   LocalExchanger.accept(page)
- *   对于hash partition，把page按行的hash值进行分割，得到map(partition -> page)
- *     把得到的page_partition加入source：LocalExchangeSource.addPage(page)
+ *   对于hash partition，把page按行的hash值进行分割，把所有hash值相同的行组合成新的page, 得到map(partition -> page)
+ *     把得到的partitioned_page加入source：LocalExchangeSource.addPage(page)
  *
  * LocalExchangeSink -> exchanger (partition) -> LocalExchangeSource
  */

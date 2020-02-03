@@ -20,6 +20,7 @@ import io.prestosql.spi.PageBuilder;
 import io.prestosql.spi.block.Block;
 import io.prestosql.spi.block.BlockBuilder;
 import io.prestosql.spi.block.DictionaryBlock;
+import io.prestosql.spi.block.LongArrayBlock;
 import io.prestosql.spi.type.Type;
 import org.testng.annotations.Test;
 
@@ -50,7 +51,9 @@ public class TestLookupJoinPageBuilder
         LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(ImmutableList.of(BIGINT, BIGINT));
 
         int joinPosition = 0;
+        // 交替append [1] lookupSource joinPosition对应的行, [2] 值全为null的行 到lookupJoinPageBuilder作为新行
         while (!lookupJoinPageBuilder.isFull() && probe.advanceNextPosition()) {
+            // 把lookupSource内部的page，第joinPosition行，append到lookupJoinPageBuilder
             lookupJoinPageBuilder.appendRow(probe, lookupSource, joinPosition++);
             lookupJoinPageBuilder.appendNullForBuild(probe);
         }
@@ -60,6 +63,7 @@ public class TestLookupJoinPageBuilder
         assertEquals(output.getChannelCount(), 4);
         assertTrue(output.getBlock(0) instanceof DictionaryBlock);
         assertTrue(output.getBlock(1) instanceof DictionaryBlock);
+        // System.out.println(output.getPositionCount()); // 20_000
         for (int i = 0; i < output.getPositionCount(); i++) {
             assertFalse(output.getBlock(0).isNull(i));
             assertFalse(output.getBlock(1).isNull(i));

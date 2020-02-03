@@ -33,6 +33,7 @@ public class TestPagesIndex
     @Test
     public void testEstimatedSize()
     {
+        // 对应block的类型为：LongArrayBlock, VariableWidthBlock
         List<Type> types = ImmutableList.of(BIGINT, VARCHAR);
 
         PagesIndex pagesIndex = newPagesIndex(types, 30, false);
@@ -53,12 +54,14 @@ public class TestPagesIndex
         pagesIndex.compact();
         long estimatedSizeAfterCompact = pagesIndex.getEstimatedSize().toBytes();
         // We can expect compact to reduce size because VARCHAR sequence pages are compactable.
+        // 如果把types里的VARCHAR类型改成BIGINT，则压缩前后的大小不变，这个test会fail
         assertTrue(estimatedSizeAfterCompact < estimatedSizeWithTwoPages, format(
                 "Compact should reduce (or retain) size, but changed from %s to %s",
                 estimatedSizeWithTwoPages,
                 estimatedSizeAfterCompact));
     }
 
+    // eager compact在加入page时就把block进行压缩了，lazy compact则是加入page后还需要调用compact()来压缩block
     @Test
     public void testEagerCompact()
     {

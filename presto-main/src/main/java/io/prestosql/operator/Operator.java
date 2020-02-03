@@ -17,6 +17,9 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.prestosql.spi.Page;
 
+/**
+ * Operator一般包含OperatorFactory作为inner class，从而可以调用OperatorFactory.createOperator()来创建这个operator
+ */
 public interface Operator
         extends AutoCloseable
 {

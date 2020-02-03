@@ -50,6 +50,14 @@ public class LookupJoinOperatorFactory
 
     private boolean closed;
 
+    /**
+     * join channel是sql语句中join指定比较的列，hash channel是指定某个列，join时直接用这个列的值来比较
+     *
+     * hash channel的列可以是表中的某个列，比如join只比较1个列，可以把直接把这个列设为hash channel，比较列的值就可以了，不用hash
+     * 如果join包含多个列，可以预先计算好这些列的hash值放到1个额外的列，把这个列设为hash channel
+     *
+     * totalOperatorsCount是由LocalExecutionPlanner$LocalExecutionPlanContext的driverInstanceCount决定的
+     */
     public LookupJoinOperatorFactory(
             int operatorId,
             PlanNodeId planNodeId,

@@ -50,6 +50,10 @@ public abstract class AbstractVariableWidthType
                 expectedBytes);
     }
 
+    /**
+     * 对于变长类型，比如AbstractVariableWidthType的block，在初始化时会预分配足够存放expectedEntries行，且每行大小为
+     * expectedBytesPerEntry的空间
+     */
     @Override
     public BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int expectedEntries)
     {

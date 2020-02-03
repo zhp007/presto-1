@@ -20,6 +20,9 @@ public interface OperatorFactory
     Operator createOperator(DriverContext driverContext);
 
     /**
+     * noMoreOperators()调用后，之后不能再调用createOperator()来创建新的operator
+     */
+    /**
      * Declare that createOperator will not be called any more and release
      * any resources associated with this factory.
      * <p>

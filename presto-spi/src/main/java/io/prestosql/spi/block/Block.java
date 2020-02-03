@@ -25,6 +25,8 @@ import static io.prestosql.spi.block.DictionaryId.randomDictionaryId;
 * 用Slices.allocate()申请新的Slice，用Slice.getXXX()和Slice.setXXX()对Slice的某一段(offset + length)进行操作
 * Slice和ByteBuffer类似
 *
+* Slice表示表中的某一行
+*
 * Block表示表中的某一列，内部是由相同类型的数据组成的数组，每个数据占用1个position，总共保存position count行这一列的数据
 * 1个Block只支持1个getXXX()方法，因为里面的数据都是同类型的
 *

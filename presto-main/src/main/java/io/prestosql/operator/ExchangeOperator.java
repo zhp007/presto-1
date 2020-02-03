@@ -48,6 +48,7 @@ import static java.util.Objects.requireNonNull;
 * 从中Query.getNextResult()获取查询的结果则是通过ExchangeClient.pollPage()，进而调用pageBuffer.poll()从pageBuffer中取出之前存的task
 * 执行结果page
 * */
+
 public class ExchangeOperator
         implements SourceOperator, Closeable
 {

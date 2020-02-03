@@ -38,6 +38,7 @@ public interface LookupSource
 
     long getNextJoinPosition(long currentJoinPosition, int probePosition, Page allProbeChannelsPage);
 
+    // 把LookupSource自己内部存储的page，第position行，append到pageBuilder
     void appendTo(long position, PageBuilder pageBuilder, int outputChannelOffset);
 
     boolean isJoinPositionEligible(long currentJoinPosition, int probePosition, Page allProbeChannelsPage);

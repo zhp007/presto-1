@@ -16,6 +16,7 @@ package io.prestosql.operator;
 import io.prestosql.spi.Page;
 import io.prestosql.spi.PageBuilder;
 import io.prestosql.spi.block.Block;
+// import io.prestosql.spi.block.DictionaryBlock;
 import io.prestosql.spi.type.Type;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 
@@ -68,6 +69,12 @@ public class LookupJoinPageBuilder
     /**
      * append the index for the probe and copy the row for the build
      */
+    /**
+     * position = probe.getPosition()
+     * probe里面的page的第position行[1] 对应 lookupSource里面的page的第joinPosition行[2]，[2]同时也append到buildPageBuilder
+     *
+     * probeIndexBuilder保存probe的行的位置，这些行在appendRow()时append到buildPageBuilder
+     */
     public void appendRow(JoinProbe probe, LookupSource lookupSource, long joinPosition)
     {
         // probe side
@@ -93,6 +100,13 @@ public class LookupJoinPageBuilder
         }
     }
 
+    /**
+     * build_page = buildPageBuilder.build()
+     * 对每一个JoinProbe包含的probe_page，都生成一个新的build_page，把probe_page和build_page合并成一个新的page
+     *
+     * 新page的结构为：
+     * merged_page = [probe_page, build_page]，probe page在前，build page在后
+     */
     public Page build(JoinProbe probe)
     {
         int[] probeIndices = probeIndexBuilder.toIntArray();
@@ -100,9 +114,12 @@ public class LookupJoinPageBuilder
         verify(buildPageBuilder.getPositionCount() == length);
 
         int[] probeOutputChannels = probe.getOutputChannels();
+
         Block[] blocks = new Block[probeOutputChannels.length + buildOutputChannelCount];
         for (int i = 0; i < probeOutputChannels.length; i++) {
             Block probeBlock = probe.getPage().getBlock(probeOutputChannels[i]);
+            // System.out.println(probeBlock instanceof DictionaryBlock); // false
+            // probeBlock.getPositions()的默认实现是从当前block创建DictionaryBlock
             if (!isSequentialProbeIndices || length == 0) {
                 blocks[i] = probeBlock.getPositions(probeIndices, 0, probeIndices.length);
             }
@@ -117,6 +134,7 @@ public class LookupJoinPageBuilder
                 verify(probeIndices[length - 1] - probeIndices[0] == length - 1);
                 blocks[i] = probeBlock.getRegion(probeIndices[0], length);
             }
+            // System.out.println(blocks[i] instanceof DictionaryBlock); // true
         }
 
         Page buildPage = buildPageBuilder.build();

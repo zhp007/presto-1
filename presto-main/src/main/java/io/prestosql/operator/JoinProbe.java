@@ -37,6 +37,11 @@ public class JoinProbe
             this.probeHashChannel = probeHashChannel;
         }
 
+        /**
+         * 根据join channels从page中取出join的列对应的block，生成probeBlocks，把这些block合并成probePage
+         *
+         * 如果有hash channel，则生成类似的probeHashBlock，hash channel只能有1个
+         */
         public JoinProbe createJoinProbe(Page page)
         {
             return new JoinProbe(probeOutputChannels, page, probeJoinChannels, probeHashChannel);
@@ -50,6 +55,11 @@ public class JoinProbe
     private final Page probePage;
     private final Optional<Block> probeHashBlock;
 
+    /**
+     * 用来记录当前遍历到这个probe page的哪一行
+     *
+     * 每读完一行，都会调用probe.advanceNextPosition()把position + 1
+     */
     private int position = -1;
 
     private JoinProbe(int[] probeOutputChannels, Page page, List<Integer> probeJoinChannels, OptionalInt probeHashChannel)

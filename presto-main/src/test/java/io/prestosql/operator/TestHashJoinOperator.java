@@ -154,6 +154,19 @@ public class TestHashJoinOperator
                 {false, false, false}};
     }
 
+    /**
+     * 这个例子里join stage被划分成3条pipeline，每个pipeline里面有1个driver
+     * 注：一条pipeline就是一组可以以流水线方式running起来的一组算子，下游算子（pipeline的上方位置）消费上游算子输出的page
+     *
+     * 各类context创建的关系为：
+     * TaskContext <- QueryContext.addTaskContext()
+     *   PipelineContext <- TaskContext.addPipelineContext()
+     *     DriverContext <- PipelineContext.addDriverContext()
+     *     DriverContext使用的地方：Driver.createDriver(), OperatorFactory.createOperator()
+     *       OperatorContext <- DriverContext.addOperatorContext
+     *
+     * context用来记录运行时各个层次的metrics，层次从高到低位：query, task, pipeline, driver, operator
+     */
     @Test(dataProvider = "hashJoinTestValues")
     public void testInnerJoin(boolean parallelBuild, boolean probeHashEnabled, boolean buildHashEnabled)
     {
@@ -190,6 +203,32 @@ public class TestHashJoinOperator
                 .row("29", 1029L, 2029L, "29", 39L, 49L)
                 .build();
 
+        /**
+         * 从joinOperatorFactory创建operator, 把probeInput作为输入，验证输出的page和expected相同
+         *
+         * hash join实际上用的也是LookupJoinOperator，创建operator时初始化了LookupJoinPageBuilder (pageBuilder)，调用
+         * addInput(page)把probe page作为输入，从page创建出JoinProbe (probe)，之后调用：
+         * getOutput()
+         *   processProbe()
+         *     processProbe(lookupSource)
+         *       joinCurrentPosition(lookupSource)
+         *         // join的过程，取出probe中的一行，在lookupSource中一直next()找到对应的行，
+         *         // 再调用lookupSource.isJoinPositionEligible()判断来自probe和lookupSource的行是否可以真的join，
+         *         // 如果可以就把这两行合并，添加到pageBuilder里
+         *         pageBuilder.appendRow()
+         *         // 每append一行，检查pageBuilder是否满了，如果满了，就调用pageBuilder.build(probe)把当前join的结果放到outputPage
+         *         // 每调用一次getOutput()，就把保存的outputPage作为结果返回，然后清空outputPage，用来保存下一个join结果的page
+         *
+         * pageBuilder.build()把probe_page和build_page合并
+         *
+         * 每次调用addInput()时会调用tryFetchLookupSourceProvider()，从future里拿到lookupSourceProvider，future在初始化
+         * LookupJoinOperator时就创建了：future = lookupSourceFactory.createLookupSourceProvider()
+         *
+         * 在调用getOutput() -> processProbe()时，从provider里拿到lease，再从lease拿到lookupSource：
+         * lookupSourceProvider.withLease(lease -> action()) // 如果能拿到lease，就执行action()
+         *   lookupSourceLease.getLookupSource()
+         *   // 拿到lookupSource后执行join操作
+         */
         assertOperatorEquals(joinOperatorFactory, taskContext.addPipelineContext(0, true, true, false).addDriverContext(), probeInput, expected, true, getHashChannels(probePages, buildPages));
     }
 
@@ -1247,6 +1286,8 @@ public class TestHashJoinOperator
             hashChannels.add(probe.getHashChannel().get());
         }
         if (build.getHashChannel().isPresent()) {
+            // probe page和build page合并后的结构为[probe_page, build_page]
+            // 生成的page中对应原来build_page的列的位置要加上probe_page的总长作为offset
             hashChannels.add(probe.getTypes().size() + build.getHashChannel().get());
         }
         return hashChannels.build();
@@ -1268,6 +1309,7 @@ public class TestHashJoinOperator
 
     private OperatorFactory innerJoinOperatorFactory(JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager, RowPagesBuilder probePages, PartitioningSpillerFactory partitioningSpillerFactory)
     {
+        // LookupJoinOperators.innerJoin()只创建OperatorFactory，并不是真正执行inner join
         return LOOKUP_JOIN_OPERATORS.innerJoin(
                 0,
                 new PlanNodeId("test"),
@@ -1308,6 +1350,8 @@ public class TestHashJoinOperator
         DriverContext collectDriverContext = taskContext.addPipelineContext(0, true, true, false).addDriverContext();
         ValuesOperatorFactory valuesOperatorFactory = new ValuesOperatorFactory(0, new PlanNodeId("values"), buildPages.build());
         LocalExchangeSinkOperatorFactory sinkOperatorFactory = new LocalExchangeSinkOperatorFactory(localExchangeFactory, 1, new PlanNodeId("sink"), localExchangeSinkFactoryId, Function.identity());
+
+        // 创建第1条pipeline，这个pipeline有1个driver，driver中的一组算子为：ValuesOperator, LocalExchangeSinkOperator
         Driver sourceDriver = Driver.createDriver(collectDriverContext,
                 valuesOperatorFactory.createOperator(collectDriverContext),
                 sinkOperatorFactory.createOperator(collectDriverContext));
@@ -1319,6 +1363,21 @@ public class TestHashJoinOperator
         }
 
         // build side operator factories
+        /**
+         * 怎么把第1条pipeline上sink operator放到local exchange source里面的数据让第2条pipeline上的source operator拿到？
+         *
+         * 前面调用sinkOperatorFactory.createOperator()时，在里面调用LocalExchangeFactory.getLocalExchange()创建了LocalExchange，
+         * 在创建LocalExchange时已经把所有LocalExchangeSource创建并保存在LocalExchange里了，这里在创建LocalExchangeSourceOperatorFactory时
+         * 传入localExchangeFactory，从而在调用它的createOperator()时获取LocalExchange，进而调用LocalExchange.getNextSource()
+         * 获取之前在LocalExchange中初始化的LocalExchangeSource
+         * 第一步：
+         * LocalExchangeSinkOperatorFactory.createOperator()
+         *   LocalExchangeSource <- LocalExchangeFactory.getLocalExchange()，触发LocalExchange的创建
+         * 第二步：
+         * LocalExchangeSourceOperatorFactory.createOperator()
+         *   LocalExchangeSource <- LocalExchangeFactory.getLocalExchange().getNextSource()
+         * 这里LocalExchangeFactory (LocalExchange) 在sink operator和source operator之间传递exchange source (page)
+         */
         LocalExchangeSourceOperatorFactory sourceOperatorFactory = new LocalExchangeSourceOperatorFactory(0, new PlanNodeId("source"), localExchangeFactory);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager = JoinBridgeManager.lookupAllAtOnce(new PartitionedLookupSourceFactory(
                 buildPages.getTypes(),
@@ -1347,6 +1406,24 @@ public class TestHashJoinOperator
                 new PagesIndex.TestingFactory(false),
                 spillEnabled,
                 singleStreamSpillerFactory);
+        /**
+         * build side的构成：
+         * 给定buildPages作为build side的数据源时，同时指定了partition (join) channel，同时page自身也带有可以直接用的的hash channel
+         * 这些用于hash partition的信息会传给local exchange (sink, source), hash builder operator共同使用
+         *
+         * 创建了2条pipeline:
+         * 第1条是把数据源通过local exchange partition后放到local exchange source
+         * sink operator (local exchange sink)
+         *       |
+         * source operator (values operator, 也可以是exchange operator)
+         *
+         *
+         * hash builder operator
+         *       |
+         * lookup source (partitioned lookup source)
+         *       |
+         * source operator (local exchange source)
+         */
         return new BuildSideSetup(lookupSourceFactoryManager, buildOperatorFactory, sourceOperatorFactory, partitionCount);
     }
 
@@ -1355,6 +1432,8 @@ public class TestHashJoinOperator
         PipelineContext buildPipeline = taskContext.addPipelineContext(1, true, true, false);
         List<Driver> buildDrivers = new ArrayList<>();
         List<HashBuilderOperator> buildOperators = new ArrayList<>();
+        // 对每个partition都创建一个driver，里面按顺序包含: source operator -> build operator
+        // 所有partition的driver构成一条pipeline
         for (int i = 0; i < buildSideSetup.getPartitionCount(); i++) {
             DriverContext buildDriverContext = buildPipeline.addDriverContext();
             HashBuilderOperator buildOperator = buildSideSetup.getBuildOperatorFactory().createOperator(buildDriverContext);
@@ -1369,6 +1448,22 @@ public class TestHashJoinOperator
         buildSideSetup.setDriversAndOperators(buildDrivers, buildOperators);
     }
 
+    /**
+     * 在buildSideSetup中设置好driver后，怎么触发执行，以及怎么知道build side已经把所有的数据源处理完了呢？
+     * 通过LookupSourceFactory
+     *
+     * LookupSource可以理解为"用来查询的数据源"，也就是build side
+     *
+     * 以PartitionedLookupSourceFactory为例：
+     * LookupSourceFactory作为一种通知机制，调用createLookupSourceProvider()表示准备处理build side这条pipeline，创建
+     * 用于join查询的table，返回future<LookupSourceProvider>，只要future.isDone()为false，就表示还没有处理完build side的数据，
+     * hash table还在创建
+     *
+     * 只有当HashBuilderOperator读完所有数据，创建好hash table后，调用finishInput()，LookupSourceFactory才会调用
+     * lendPartitionLookupSource() -> supplyLookupSources()，set前面的future，表示读完build side的数据源的数据了，从而通知
+     * build的发起者。否则会一直运行pipeline上的driver，尝试读取新的数据
+     *
+     */
     private void buildLookupSource(BuildSideSetup buildSideSetup)
     {
         requireNonNull(buildSideSetup, "buildSideSetup is null");
@@ -1382,8 +1477,10 @@ public class TestHashJoinOperator
                 buildDriver.process();
             }
         }
+        // 不再需要lookupSourceProvider进行通知了
         getFutureValue(lookupSourceProvider).close();
 
+        // 再运行一次，处理driver中剩余的数据
         for (Driver buildDriver : buildDrivers) {
             runDriverInThread(executor, buildDriver);
         }

@@ -115,6 +115,9 @@ public class Driver
         return driver;
     }
 
+    /**
+     * 创建Driver时，传入的operator列表是有顺序的，第1个一般是提供数据的operator，比如SourceOperator, ValuesOperator
+     */
     @VisibleForTesting
     public static Driver createDriver(DriverContext driverContext, Operator firstOperator, Operator... otherOperators)
     {

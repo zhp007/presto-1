@@ -71,6 +71,26 @@ import static java.util.Objects.requireNonNull;
  * <li>Positional output via the {@link #appendTo} method</li>
  * </ul>
  */
+
+/**
+ * PagesIndex用来对算子里面积攒的多个page进行寻址
+ *
+ * channels = list(Block[]), channels[i]表示当前所有page的第 i + 1 列的Block组成的Block数组
+ *
+ *          channels[0]     channels[1]     channels[N]
+ *          block0[]          block1[]          blockN[]
+ * page0
+ *
+ * page1
+ *
+ * ...
+ *
+ * pageM
+ *
+ * channels[i].get(j)获取第 j + 1 个page的第 i + 1 列对应的block
+ * 比如：
+ * channels[0].get(1)获取第2个page的第1列对应的block
+ */
 public class PagesIndex
         implements Swapper
 {
@@ -103,12 +123,14 @@ public class PagesIndex
         this.joinCompiler = requireNonNull(joinCompiler, "joinCompiler is null");
         this.functionRegistry = requireNonNull(functionRegistry, "functionRegistry is null");
         this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
+        // expectedPositions表示page集合中预期有多少行数据
         this.valueAddresses = new LongArrayList(expectedPositions);
         this.eagerCompact = eagerCompact;
 
         //noinspection rawtypes
         channels = (ObjectArrayList<Block>[]) new ObjectArrayList[types.size()];
         for (int i = 0; i < channels.length; i++) {
+            // 为page集合的每一列预先分配1024个block，并没有存实际的数据，所以实际数组大小为0
             channels[i] = ObjectArrayList.wrap(new Block[1024], 0);
         }
 
@@ -207,6 +229,7 @@ public class PagesIndex
 
         positionCount += page.getPositionCount();
 
+        // 新加入的page在page集合中的索引为channels[i].size()
         int pageIndex = (channels.length > 0) ? channels[0].size() : 0;
         for (int i = 0; i < channels.length; i++) {
             Block block = page.getBlock(i);
@@ -218,6 +241,8 @@ public class PagesIndex
         }
 
         for (int position = 0; position < page.getPositionCount(); position++) {
+            // 对这个page的每一行数据进行地址编码，用2个参数：(page在page集合(PagesIndex)中的索引，每一行在这个page中的位置)
+            // 可以用这个新的地址在page集合中快速找到某个page中的一行数据，这里slice表示page中的某一行
             long sliceAddress = encodeSyntheticAddress(pageIndex, position);
             valueAddresses.add(sliceAddress);
         }
@@ -229,6 +254,11 @@ public class PagesIndex
         return new DataSize(estimatedSize, BYTE);
     }
 
+    /**
+     * 对某些变长类型的block，会预分配（初始数目的行 * 预估每行大小）的空间，但是实际的行及每行的大小可能小于设定值，
+     * 经过compact()方法压缩后，可以减小占用的内存空间
+     * 比如：AbstractVariableWidthType -> VariableWidthBlock
+     */
     public void compact()
     {
         if (eagerCompact) {
@@ -252,9 +282,13 @@ public class PagesIndex
 
     private long calculateEstimatedSize()
     {
+        // 每一列的block[]的大小，block[]按object array处理，它的大小用sun.misc.Unsafe来计算
+        // 在slice里面，对某个类型数组的大小，计算的通用方法为：type_base_offset + type_index_scale * length
         long elementsSize = (channels.length > 0) ? sizeOf(channels[0].elements()) : 0;
         long channelsArraySize = elementsSize * channels.length;
+        // 编码后的行地址集合的大小，每行地址slice address的类型为long
         long addressesArraySize = sizeOf(valueAddresses.elements());
+        // INSTANCE_SIZE是class PagesIndex实例本身的大小
         return INSTANCE_SIZE + pagesMemorySize + channelsArraySize + addressesArraySize;
     }
 

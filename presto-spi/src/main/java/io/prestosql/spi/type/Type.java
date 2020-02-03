@@ -27,7 +27,8 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * 读取block中的数据的方法：
- * 已知block的类型为type (XXX)，调用type.getXXX(block, position)获取这个block里面对应行position的值
+ * 已知block的类型为type (XXX)，调用type.getXXX(block, position)获取这个block里面对应行position的值，调用
+ * type.writeXXX(blockBuilder, XXX value)往block里面写XXX类型的值value
  */
 public interface Type
 {
