@@ -45,6 +45,13 @@ public final class PlanAssert
         assertPlan(session, metadata, statsProvider, actual, lookup, pattern);
     }
 
+    /**
+     * plan match的过程：
+     * 1. 根据预期的logical plan的树结构创建PlanMatchPattern，PlanMatchPattern本身也是树结构，传进来的pattern是它的根节点
+     * 2. 根据logicalPlanner.plan()创建出实际的查询计划 Plan actual
+     * 3. 用PlanMatchingVisitor同时遍历 (Plan ->) PlanNode 和 PlanMatchPattern
+     * 具体的入口方法为：PlanMatchingVisitor.visitPlan(PlanNode node, PlanMatchPattern pattern)
+     */
     public static void assertPlan(Session session, Metadata metadata, StatsProvider statsProvider, Plan actual, Lookup lookup, PlanMatchPattern pattern)
     {
         MatchResult matches = actual.getRoot().accept(new PlanMatchingVisitor(session, metadata, statsProvider, lookup), pattern);

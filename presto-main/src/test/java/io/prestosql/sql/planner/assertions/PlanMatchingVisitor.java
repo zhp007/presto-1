@@ -94,6 +94,24 @@ final class PlanMatchingVisitor
         return matchLeaf(node, pattern, pattern.shapeMatches(node));
     }
 
+    /**
+     * 遍历plan的过程：
+     * 1. 先比较形状，确认plan node和pattern有相同的子节点
+     * 对每个子节点创建一个PlanMatchingState，当一个节点的所有子节点的pattern.isTerminated()都为true时，
+     * 这个节点的state.isTerminated()才为true，表示遍历完这个节点及其子节点了
+     * 2. 如果是叶子节点，则调用matchLeaf(node, pattern)
+     * 3. 否则对每个子节点（用state表示），也就是source节点，执行以下步骤：
+     * 1). 调用matchSources(node, state)，把PlanNode source和state.getPatterns()一一对应比较
+     * 2). 调用pattern.detailMatches(node, ..., allSourceAliases)，比较plan node节点内部的详细信息，其中allSourceAliases
+     * 就是SymbolAliases: Map<String, SymbolReference>，是子节点传递给当前节点的列的别名的集合
+     *
+     * 什么是PlanMatchPattern和Matcher，其中的shape match和detailed match的区别是什么？
+     * PlanMatchPattern包含了List<Matcher> matchers
+     * pattern和matcher都有shapeMatches()和detailMatches()两种方法
+     * pattern.shapeMatches()调用matcher.shapeMatches()，同样的pattern.detailMatches()调用matcher.detailMatches()
+     * shape match 只比较节点自身的类型，而detailed match则比较当前节点及其子节点的详细信息，比如属性或是要引用子节点的symbol aliases
+     * 每种类型的PlanNode都会实现自己的matcher，包含上面两种方法，因为不同的节点类型会比较不同的信息
+     */
     @Override
     protected MatchResult visitPlan(PlanNode node, PlanMatchPattern pattern)
     {

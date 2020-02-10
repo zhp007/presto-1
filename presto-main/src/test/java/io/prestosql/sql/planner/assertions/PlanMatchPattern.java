@@ -115,6 +115,12 @@ public final class PlanMatchPattern
      *
      * @note anyTree does not match zero nodes. E.g. output(anyTree(tableScan)) will NOT match TableScan node followed by OutputNode.
      */
+    /**
+     * 用sources创建一个新的PlanMatchPattern，并把sources设置为其中的sourcePatterns，boolean anyTree设置成true，
+     * 也是创建PlanMatchPattern树的过程，创建的pattern为新的根节点，sources作为它的子节点
+     *
+     * 下面的shapeMatches(PlanNode node)用 if (anyTree) 来判断当前这个PlanMatchPattern是否包含source patterns
+     */
     public static PlanMatchPattern anyTree(PlanMatchPattern... sources)
     {
         return any(sources).matchToAnyNodeTree();
