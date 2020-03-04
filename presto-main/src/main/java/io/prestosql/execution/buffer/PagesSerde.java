@@ -38,6 +38,15 @@ import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
+/**
+ * 序列化的过程：
+ * Page写到SliceOutput，用其中的Slice组装出SerializedPage，再进一步把SerializedPage写到新的SliceOutput
+ *
+ * 反序列化的过程：
+ * 从SliceOutput得到SerializedPage，获取其中的Slice，对其解压缩、解密后，得到Page对应的SliceInput，进一步从SliceInput里获取Page
+ *
+ * SliceInput、SliceOutput的底层都是Slice，只是针对序列化和反序列化，Slice组织数据的结构不同
+ */
 @NotThreadSafe
 public class PagesSerde
 {
@@ -98,6 +107,7 @@ public class PagesSerde
             slice = Slices.copyOf(slice);
         }
 
+        // 从raw page得到初始的slice, 把这个slice经过compress, encrypt后得到最终的slice
         return new SerializedPage(slice, markers, page.getPositionCount(), uncompressedSize);
     }
 

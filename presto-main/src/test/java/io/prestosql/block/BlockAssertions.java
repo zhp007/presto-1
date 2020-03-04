@@ -86,6 +86,7 @@ public final class BlockAssertions
     {
         assertEquals(actual.getPositionCount(), expected.getPositionCount());
         for (int position = 0; position < actual.getPositionCount(); position++) {
+            // 按类型type读取每一行的数据
             assertEquals(type.getObjectValue(SESSION, actual, position), type.getObjectValue(SESSION, expected, position));
         }
     }

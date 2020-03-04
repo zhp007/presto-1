@@ -23,6 +23,15 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * BufferInfo: OutputBufferId 对应的 ClientBuffer 包含多少 buffered_page, sent_page
+ * PageBufferInfo: 每个BufferInfo有一个PageBufferInfo，属于哪个partition (OutputBufferId -> id)，有多少buffered_page,
+ * added_page，有多少行
+ *
+ * 每个OutputBuffer (interface)，都包含一个OutputBuffers
+ * 一对多：OutputBuffers -> map(OutputBufferId -> partition)
+ * 一一对应：OutputBufferId (partition) -> ClientBuffer -> 包含BufferInfo, PageBufferInfo
+ */
 public class BufferInfo
 {
     private final OutputBufferId bufferId;

@@ -138,6 +138,7 @@ public class ExchangeClient
         }
     }
 
+    // 对每个remote node的location，创建一个HttpPageBufferClient
     public synchronized void addLocation(URI location)
     {
         requireNonNull(location, "location is null");
@@ -219,6 +220,11 @@ public class ExchangeClient
             return null;
         }
 
+        /**
+         * 调用pollPage()直接就从pageBuffer里拿page，pageBuffer里初始的page是从哪里加入的？
+         * 调用exchangeClient.addLocation()创建client时，会立即调用scheduleRequestIfNecessary()加入当前的task results
+         * pageBuffer可以为空，获得的page为null，postProcessPage()会直接返回空
+         */
         SerializedPage page = pageBuffer.poll();
         return postProcessPage(page);
     }
@@ -231,6 +237,8 @@ public class ExchangeClient
             return null;
         }
 
+        // 把NO_MORE_PAGES放到pageBuffer里面作为end marker，当前poll出的page为它时，调用close()
+        // 这里client不会显示调用close()
         if (page == NO_MORE_PAGES) {
             // mark client closed; close() will add the end marker
             close();
@@ -324,6 +332,11 @@ public class ExchangeClient
         }
     }
 
+    /**
+     * 如果被block，返回一个没有set的future表示等待
+     * 配合 Futures.transform(future, future -> action)，当这个future有结果返回后，继续执行后面的action
+     * 这是一种异步的通知机制，在一个地方等待某些资源才能进行后续的动作，这个资源能否使用要在别的地方得知，用future作为两者的媒介
+     */
     public synchronized ListenableFuture<?> isBlocked()
     {
         if (isClosed() || isFailed() || pageBuffer.peek() != null) {

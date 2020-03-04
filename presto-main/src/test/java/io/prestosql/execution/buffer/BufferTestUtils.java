@@ -90,6 +90,7 @@ public final class BufferTestUtils
         return new DataSize(BUFFERED_PAGE_SIZE.toBytes() * count, BYTE);
     }
 
+    // 找到buffer中bufferId (partition)对应的ClientBuffer，从它的sequenceId (token)位置起，拿到不大小超过maxSize的serialized_page
     static BufferResult getBufferResult(OutputBuffer buffer, OutputBufferId bufferId, long sequenceId, DataSize maxSize, Duration maxWait)
     {
         ListenableFuture<BufferResult> future = buffer.get(bufferId, sequenceId, maxSize);

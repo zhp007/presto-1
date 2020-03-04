@@ -92,6 +92,8 @@ public class TestExchangeClient
         processor.addPage(location, createPage(3));
         processor.setComplete(location);
 
+        // TestingHttpClient.execute(request) -> processor.handle(request)
+        // 提交给TestingHttpClient的request会交到processor来处理
         @SuppressWarnings("resource")
         ExchangeClient exchangeClient = new ExchangeClient(
                 new DataSize(32, Unit.MEGABYTE),
@@ -104,6 +106,7 @@ public class TestExchangeClient
                 new SimpleLocalMemoryContext(newSimpleAggregatedMemoryContext(), "test"),
                 pageBufferClientCallbackExecutor);
 
+        // 对这个location创建一个HttpPageBufferClient
         exchangeClient.addLocation(location);
         exchangeClient.noMoreLocations();
 
@@ -114,6 +117,21 @@ public class TestExchangeClient
         assertEquals(exchangeClient.isClosed(), false);
         assertPageEquals(getNextPage(exchangeClient), createPage(3));
         assertNull(getNextPage(exchangeClient));
+        /**
+         * 在ExchangeClient.addLocation()中创建HttpPageBufferClient时，传入ExchangeClientCallback
+         * 在HttpPageBufferClient完成后，调用close() -> sendDelete()删除location对应的task，如果成功则会调用
+         * clientCallback.clientFinished()
+         *
+         * 回调的过程：
+         * Class.this表示外部类的实例，从而使内部类能引用外部类
+         * HttpPageBufferClient.sendDelete() (这个client包含ExchangeClient的callback)
+         *   // 调用外部类的callback，并把自己传进去
+         *   clientCallback.clientFinished(HttpPageBufferClient.this)
+         *     // callback是外部类的一个私有内部类，接受上面的传的client (this)后，调用该内部类的外部类的实例的方法，
+         *     // 把这个object传给外部类的方法
+         *     ExchangeClient.this.clientFinished(client);
+         * 这里callback相当于两个类传递方法和私有成员的工具：类B调用类A的方法，类A的方法又要用到类B的私有成员
+         */
         assertEquals(exchangeClient.isClosed(), true);
 
         ExchangeClientStatus status = exchangeClient.getStatus();
@@ -177,6 +195,13 @@ public class TestExchangeClient
         assertFalse(tryGetFutureValue(exchangeClient.isBlocked(), 10, MILLISECONDS).isPresent());
         assertEquals(exchangeClient.isClosed(), false);
 
+        /**
+         * 调用exchangeClient.noMoreLocations() -> scheduleRequestIfNecessary() -> notifyBlockedCallers()
+         * 通知exchangeClient没有更多的源头(location)去获取page，如果已经处理完当前的page，则可以close
+         *
+         * 当[1]处理的page为NO_MORE_PAGES, [2]调用close()，[3]处理完所有page后发送最后一次request，[4]加新的page，
+         * [5]client获取page失败时，会notifyBlockedCallers() 通知所有等待的exchangeClient，从而exchangeClient.isBlocked() = false
+         */
         exchangeClient.noMoreLocations();
         // The transition to closed may happen asynchronously, since it requires that all the HTTP clients
         // receive a final GONE response, so just spin until it's closed or the test times out.
@@ -184,6 +209,7 @@ public class TestExchangeClient
             Thread.sleep(1);
         }
 
+        // uniqueIndex: 2个参数：value, func(value -> key)，把每个value用在函数上产生对应的key，得到map<key, value>
         ImmutableMap<URI, PageBufferClientStatus> statuses = uniqueIndex(exchangeClient.getStatus().getPageBufferClientStatuses(), PageBufferClientStatus::getUri);
         assertStatus(statuses.get(location1), location1, "closed", 3, 3, 3, "not scheduled");
         assertStatus(statuses.get(location2), location2, "closed", 3, 3, 3, "not scheduled");
@@ -192,6 +218,19 @@ public class TestExchangeClient
     @Test
     public void testBufferLimit()
     {
+        /**
+         * 指定maxResponseSize时，会用它创建HttpPageBufferClient
+         * // 把这个参数作为http header，加到发送给TaskResource的request中
+         * HttpPageBufferClient.sendGetResults()
+         *   TaskResource.getResults()
+         *     TaskManager.getTaskResults()
+         *       SqlTask.getTaskResults()
+         *         OutputBuffer.get(maxSize)
+         *           // 不管是哪种OutputBuffer，最后的调用实际上都由ClientBuffer执行
+         *           // 即使单个page的大小>maxSize，也至少会返回1个page作为结果，不会用maxSize对page进行分割
+         *           // 总是返回整数个page
+         *           ClientBuffer.getPages(maxSize) -> processRead(maxSize)
+         */
         DataSize maxResponseSize = new DataSize(1, Unit.BYTE);
         MockExchangeRequestProcessor processor = new MockExchangeRequestProcessor(maxResponseSize);
 
@@ -232,6 +271,7 @@ public class TestExchangeClient
         while (exchangeClient.getStatus().getBufferedPages() == 0);
 
         // client should have sent a single request for a single page
+        // 由于maxResponseSize的大小限制，exchangeClient的pageBuffer里面只能1次存1个page
         assertEquals(exchangeClient.getStatus().getBufferedPages(), 1);
         assertTrue(exchangeClient.getStatus().getBufferedBytes() > 0);
         assertStatus(exchangeClient.getStatus().getPageBufferClientStatuses().get(0), location, "queued", 1, 1, 1, "not scheduled");

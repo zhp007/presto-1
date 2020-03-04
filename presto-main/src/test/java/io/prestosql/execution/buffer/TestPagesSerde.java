@@ -40,6 +40,8 @@ public class TestPagesSerde
     {
         PagesSerde serde = new TestingPagesSerdeFactory().createPagesSerde();
         BlockBuilder expectedBlockBuilder = VARCHAR.createBlockBuilder(null, 5);
+        // 把string用Slices.utf8Slice()转化为Slice，然后调用BlockBuilder.writeBytes()，把Slice表示的byte[]写到BlockBuilder
+        // 内部的SliceOutput
         VARCHAR.writeString(expectedBlockBuilder, "alice");
         VARCHAR.writeString(expectedBlockBuilder, "bob");
         VARCHAR.writeString(expectedBlockBuilder, "charlie");
@@ -49,10 +51,18 @@ public class TestPagesSerde
         Page expectedPage = new Page(expectedBlock, expectedBlock, expectedBlock);
 
         DynamicSliceOutput sliceOutput = new DynamicSliceOutput(1024);
+        // 对每个page，调用serde.serialize(page)获取serialized_page后，写到sliceOutput
         writePages(serde, sliceOutput, expectedPage, expectedPage, expectedPage);
 
         List<Type> types = ImmutableList.of(VARCHAR, VARCHAR, VARCHAR);
+        // SliceInput包含Slice和当前游标的位置position
         Iterator<Page> pageIterator = readPages(serde, sliceOutput.slice().getInput());
+        /**
+         * assert page equals -> assert each block in page equals
+         *   for each row in this block:
+         *     // 用Object表示type类型的值，位置为block#position
+         *     type.getObjectValue(block, position)
+         */
         assertPageEquals(types, pageIterator.next(), expectedPage);
         assertPageEquals(types, pageIterator.next(), expectedPage);
         assertPageEquals(types, pageIterator.next(), expectedPage);

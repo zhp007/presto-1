@@ -93,15 +93,38 @@ public class TestPartitionedOutputBuffer
             fail("Expected IllegalStateException");
         }
         catch (IllegalArgumentException ignored) {
+            // maxBufferedBytes must be > 0
         }
         try {
             createPartitionedBuffer(createInitialEmptyOutputBuffers(PARTITIONED), new DataSize(0, BYTE));
             fail("Expected IllegalStateException");
         }
         catch (IllegalArgumentException ignored) {
+            // Expected a final output buffer descriptor
         }
     }
 
+    /**
+     * OutputBuffer的流控是怎么实现的？以PartitionedOutputBuffer为例
+     * 1. operator根据output buffer是否满判断是否要加新的page，加不加新的page这一步是由operator决定的，一旦调用output buffer的
+     * enqueue()，则一定会把page加到它对应的client buffer里面，所以output buffer本身没有流控的作用。但是把page加到它里面时，会同时
+     * 更新内存的使用，operator会调用OutputBuffer.isFull() -> memoryManager.getBufferBlockedFuture()返回future，上层的
+     * operator用这个future判断是否被block，要不要加新的page
+     * PartitionedOutputOperator.isBlocked()调用isFull() -> PartitionedOutputBuffer.isFull()
+     *
+     * 2. 调用OutputBuffer.enqueue()时，会创建page reference (SerializedPageReference)，其本身含有一个callback
+     * (Runnable onDereference -> memoryManager.updateMemoryUsage(-size))，即这个page不再被引用时，从内存里面移除它占用的大小。
+     * 调用OutputBuffer.get()时，会调用ClientBuffer.getPages() -> acknowledgePages(sequenceId)，在acknowledge移除page时，会
+     * 调用SerializedPageReference::dereferencePage，把page引用的计数-1，当计数为0时，则会调用之前的callback:
+     * onDereference.run()，也就是更新内存。如果更新内存后不再被memory block，则调用future.set(null)，表示buffer不再被block，可以
+     * 增加新的page了
+     * 这里有个技巧就是如果类A想调用类B的方法，但是又不想把类B传进类A，可以把类B的方法作为callback传进类A，比如这里把
+     * () -> memoryManager.updateMemoryUsage(-size)作为Runnable传进SerializedPageReference
+     *
+     * 总结：
+     * 1. operator对是否增加page进行流控，根据output buffer里的page的占用的内存大小
+     * 2. output buffer在增加/移除page时会更新整个buffer占用的内存大小，并提供接口给外部判断这个buffer是不是满了
+     */
     @Test
     public void testSimplePartitioned()
     {
@@ -112,10 +135,13 @@ public class TestPartitionedOutputBuffer
                         .withBuffer(FIRST, firstPartition)
                         .withBuffer(SECOND, secondPartition)
                         .withNoMoreBufferIds(),
+                // buffer at most 20 pages
                 sizeOfPages(20));
 
         // add three items to each buffer
         for (int i = 0; i < 3; i++) {
+            // buffer.enqueue(partition, serialized_page)
+            // 往PartitionedOutputBuffer -> OutputBuffers的每个partition的buffer里面加page
             addPage(buffer, createPage(i), firstPartition);
             addPage(buffer, createPage(i), secondPartition);
         }
@@ -131,6 +157,8 @@ public class TestPartitionedOutputBuffer
         assertQueueState(buffer, SECOND, 3, 0);
 
         // acknowledge first three pages in the first buffer
+        // 用sequenceId取page之前，先调用acknowledge(sequenceId)，把已经consume的page从ClientBuffer的list<serialized_page>
+        // 里面移除，移除的数目为(sequenceId - old_sequenceId)，更新取的起始位置（sequenceId）时才acknowledge它之前的所有page
         buffer.get(FIRST, 3, sizeOfPages(10)).cancel(true);
         // pages now acknowledged
         assertQueueState(buffer, FIRST, 0, 3);
@@ -148,6 +176,9 @@ public class TestPartitionedOutputBuffer
         assertQueueState(buffer, SECOND, 10, 0);
 
         // try to add one more page, which should block
+        // 创建buffer时指定的maxBufferSize是20个page，这个是所有partition共用的，这里加入第21个page使isBlockedOnMemory()为true
+        // 在enqueue() -> memoryManager.updateMemoryUsage()，在后面的enqueuePages()，这个page仍然会被加入到ClientBuffer里面，
+        // 但是不会被处理
         ListenableFuture<?> future = enqueuePage(buffer, createPage(13), firstPartition);
         assertFalse(future.isDone());
         assertQueueState(buffer, FIRST, 11, 3);
@@ -178,10 +209,12 @@ public class TestPartitionedOutputBuffer
         // page not acknowledged yet so sent count is still zero
         assertQueueState(buffer, SECOND, 10, 0);
         // acknowledge the 10 pages
+        // 从sequenceId = 10开始取时，才acknowledge 10以前的page
         buffer.get(SECOND, 10, sizeOfPages(3)).cancel(true);
         assertQueueState(buffer, SECOND, 0, 10);
 
         // since we consumed some pages, the blocked page future from above should be done
+        // 移除page后，调用OutputBufferMemoryManager.updateMemoryUsage() -> future.set(null)，表示不再被block
         assertFutureIsDone(future);
         assertQueueState(buffer, FIRST, 11, 3);
         assertQueueState(buffer, SECOND, 0, 10);
@@ -230,6 +263,8 @@ public class TestPartitionedOutputBuffer
                 createPage(15)));
         assertQueueState(buffer, FIRST, 10, 6);
         // acknowledge all pages from the first partition, should transition to finished state
+        // 因为 noMorePages = true，所以调用PartitionedOutputBuffer.get() -> ClientBuffer.getPages() -> processRead()时，
+        // 会立即返回emptyResults()，其中 bufferComplete = true
         assertBufferResultEquals(TYPES, getBufferResult(buffer, FIRST, 16, sizeOfPages(10), NO_WAIT), emptyResults(TASK_INSTANCE_ID, 16, true));
         buffer.abort(FIRST);
         assertQueueClosed(buffer, FIRST, 16);

@@ -56,6 +56,7 @@ class BroadcastOutputBufferManager
             OutputBuffers originalOutputBuffers = outputBuffers;
 
             // Note: it does not matter which partition id the task is using, in broadcast all tasks read from the same partition
+            // 对于broadcast，所有buffer都放在同一个partition (0) 下，也就是所有task都从同一个partition读取数据
             for (OutputBufferId newBuffer : newBuffers) {
                 outputBuffers = outputBuffers.withBuffer(newBuffer, BROADCAST_PARTITION_ID);
             }

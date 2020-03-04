@@ -44,6 +44,7 @@ public class PartitionedOutputBufferManager
         }
 
         OutputBuffers outputBuffers = createInitialEmptyOutputBuffers(requireNonNull(partitioningHandle, "partitioningHandle is null"))
+                // 每次调用withBuffers(), version + 1
                 .withBuffers(partitions.build())
                 .withNoMoreBufferIds();
         outputBufferTarget.accept(outputBuffers);
@@ -51,6 +52,10 @@ public class PartitionedOutputBufferManager
         this.outputBuffers = outputBuffers.getBuffers();
     }
 
+    /**
+     * 这个方法只是验证 newBuffers 提供的 OutputBufferId 在 partitionCount 的范围内，partitionCount在创建PartitionedOutputBufferManager
+     * 的时候就指定了，这里的 outputBuffers 只是 id -> int (partition channel)的映射
+     */
     @Override
     public void addOutputBuffers(List<OutputBufferId> newBuffers, boolean noMoreBuffers)
     {

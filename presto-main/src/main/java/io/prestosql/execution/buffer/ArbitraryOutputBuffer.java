@@ -433,6 +433,7 @@ public class ArbitraryOutputBuffer
                 }
                 bytesRemoved += page.getRetainedSizeInBytes();
                 // break (and don't add) if this page would exceed the limit
+                // 即使maxSize小于1个page的大小，也至少返回1个page，不会分割page
                 if (!pages.isEmpty() && bytesRemoved > maxBytes) {
                     break;
                 }

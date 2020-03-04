@@ -35,6 +35,32 @@ public class PagesSerdeUtil
     {
     }
 
+    /**
+     * Page在SliceOutput里面的结构为：
+     * [num_of_blocks, block_1[position_count, [offset_for_each_position], total_length, total_data_slice]]
+     *
+     * Page里面的每个Block怎么写到SliceOutput?
+     * blockEncodingSerde.writeBlock(output, block) <- InternalBlockEncodingSerde
+     *   // block包含encoding_name，由metadata.getBlockEncoding(encoding_name)得到BlockEncoding
+     *   BlockEncoding.writeBlock(this, sliceOutput, block)
+     *
+     * SliceOutput包含实际保存数据的Slice以及它的大小，这里的Slice只包含原始数据raw_page
+     *
+     * 下面的writeSerializedPage()方法也有SliceOutput，它Slice的则包含各种序列化以后的性质，结构为：
+     * [position_count, markers, uncompressed_bytes, actual_bytes, data_slice]
+     *
+     * Page、SerializedPage分别对应什么读写方法？
+     * 写：
+     * Page -> writeRawPage()
+     * SerializedPage -> writeSerializedPage()
+     * 写的输出都是SliceOutput
+     *
+     * 读：类似写
+     * Page -> readRawPage()
+     * SerializedPage -> readSerializedPage()
+     * 读的输入都是SliceInput
+     * 总结：根据不同类型的page构造对应结构的SliceOutput，以及用对应的方法解读SliceInput
+     */
     static void writeRawPage(Page page, SliceOutput output, BlockEncodingSerde serde)
     {
         output.writeInt(page.getChannelCount());
@@ -63,6 +89,12 @@ public class PagesSerdeUtil
         output.writeBytes(page.getSlice());
     }
 
+    /**
+     * SliceInput的结构：
+     * [position_count, markers, uncompressed_size, actual_size, data_slice]
+     * markers用1个byte里面的每个bit位都分别表示压缩加密等性质
+     * 实际数据都存在data_slice里，大小为actual_size
+     */
     private static SerializedPage readSerializedPage(SliceInput sliceInput)
     {
         int positionCount = sliceInput.readInt();
@@ -125,6 +157,7 @@ public class PagesSerdeUtil
                 return endOfData();
             }
 
+            // SliceInput里面的游标position会随着读取page移动，读取完当前page时，游标会移动到下一个page的起始位置
             return serde.deserialize(readSerializedPage(input));
         }
     }

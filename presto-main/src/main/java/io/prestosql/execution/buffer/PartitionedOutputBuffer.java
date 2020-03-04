@@ -231,6 +231,7 @@ public class PartitionedOutputBuffer
     {
         state.compareAndSet(OPEN, NO_MORE_PAGES);
         state.compareAndSet(NO_MORE_BUFFERS, FLUSHING);
+        // 因为不再增加新的page，所以不用对buffer进行流控了
         memoryManager.setNoBlockOnFull();
 
         partitions.forEach(ClientBuffer::setNoMorePages);

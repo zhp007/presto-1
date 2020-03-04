@@ -32,6 +32,16 @@ public class TestPartitionedOutputBufferManager
     @Test
     public void test()
     {
+        /**
+         * 另一种获取类/方法内部的object的方法：假设object所属的类为classA
+         * AtomicReference<classA> target = new AtomicReference<>();
+         * void someMethod(Consumer<classA> target) {
+         *   object =
+         *   target.accept(object)
+         * }
+         * someMethod(target::set)
+         * 这样target就能获取someMethod()内部产生的object
+         */
         AtomicReference<OutputBuffers> outputBufferTarget = new AtomicReference<>();
 
         PartitionedOutputBufferManager hashOutputBufferManager = new PartitionedOutputBufferManager(FIXED_HASH_DISTRIBUTION, 4, outputBufferTarget::set);

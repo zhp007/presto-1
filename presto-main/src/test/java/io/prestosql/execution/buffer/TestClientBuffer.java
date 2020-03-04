@@ -142,6 +142,10 @@ public class TestClientBuffer
         assertEquals(supplier.getBufferedPages(), 3);
 
         // notify the buffer that there is more data, and verify previous read completed
+        // page不足时返回pendingRead表示的future，里面包含多少page在等待获取
+        // 后面调用ClientBuffer.loadPagesIfNecessary()时，读取pendingRead中指定的[seq_id, max_size]的page，设置到其future中
+        // pull和push model的区别：push直接把page加到ClientBuffer, 从它的list里面获取page，pull是从PagesSupplier里面获取page
+        // push和poll内部都用相同的sequenceId进行流控
         buffer.loadPagesIfNecessary(supplier);
         assertBufferResultEquals(TYPES, getFuture(pendingRead, NO_WAIT), bufferResult(3, createPage(3)));
         // 1 page wad moved to the client buffer, but not acknowledged yet
@@ -196,9 +200,11 @@ public class TestClientBuffer
         assertBufferInfo(buffer, 3, 0);
 
         // acknowledge the pages
+        // future cancel后，后面再set就是无效de
         buffer.getPages(3, sizeOfPages(10)).cancel(true);
 
         // attempt to get the three elements again, which will return an empty resilt
+        // 如果sequenceId < currentSequenceId，直接返回空的结果
         assertBufferResultEquals(TYPES, getBufferResult(buffer, 0, sizeOfPages(10), NO_WAIT), emptyResults(TASK_INSTANCE_ID, 0, false));
         // pages not acknowledged yet so state is the same
         assertBufferInfo(buffer, 0, 3);
